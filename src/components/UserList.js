@@ -1,75 +1,77 @@
-import React from 'react';
-import { useQuery } from '@apollo/client';
-import { GET_USERS } from '../apollo/queries';
-import { useAuth } from '../context/AuthContext';
-
-function UserList() {
-  const { loading, error, data } = useQuery(GET_USERS);
-  const { login } = useAuth();
-
-  if (loading) return (
-    <div className="text-center py-16 px-5">
-      <h3 className="text-slate-600 font-semibold text-xl">Loading users from backend</h3>
-    </div>
-  );
-
-  if (error) return (
-    <div className="bg-red-50 border border-red-200 rounded-lg p-8 mx-5">
-      <h3 className="text-red-700 font-bold mb-4">Connection Error</h3>
-      <p className="text-red-800 mb-3"><strong>Error:</strong> {error.message}</p>
-    </div>
-  );
-
-  const handleUserClick = (user) => {
-    login(user);
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-      <div className="bg-gradient-to-br from-slate-50 to-slate-200 p-8 border-b border-slate-200">
-        <h2 className="text-3xl font-bold text-slate-800 mb-2 flex items-center gap-3">
-          System Users
-        </h2>
-        <p className="text-slate-600">Click on any user to login as them</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 p-8 min-[350px]:grid-cols-1">
-        {data.users.map((user, index) => (
-          <div
-            key={user.id}
-            onClick={() => handleUserClick(user)}
-            className={`
-              bg-white border border-slate-200 rounded-lg p-5 transition-all duration-200 relative overflow-hidden cursor-pointer
-              hover:-translate-y-1 hover:shadow-xl hover:border-slate-300 hover:scale-105
-              ${user.role === 'admin' ? 'bg-gradient-to-br from-blue-50 to-sky-50 border-sky-300' : ''}
-              animate-[fadeInUp_0.5s_ease-out]
-              ${index % 2 === 0 ? '[animation-delay:0.1s]' : '[animation-delay:0.2s]'}
-            `}
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex-1">
-                <div className="text-lg font-semibold text-slate-800 mb-1">
-                  {user.name}
-                </div>
-                <div className="text-slate-600 text-[15px] flex items-center gap-1.5 mb-2">
-                  {user.email}
-                </div>
-                <span className={`
-                  inline-block px-2.5 py-1 rounded-xl text-xs font-semibold uppercase tracking-wide
-                  ${user.role === 'admin'
-                    ? 'bg-gradient-to-br from-red-500 to-red-600 text-white'
-                    : 'bg-gradient-to-br from-violet-500 to-purple-600 text-white'
-                  }
-                `}>
-                  {user.role}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export default UserList;
+//import React from "react";
+//import { useQuery } from "@apollo/client";
+//import { GET_DOCTORS, GET_PATIENTS } from "../apollo/queries";
+//import { useAuth } from "../context/AuthContext";
+//import { useToast } from "./Toast";
+//
+//function UserList() {
+//    const { loading: loadingDoctors, error: errorDoctors, data: doctorsData } = useQuery(GET_DOCTORS);
+//    const { loading: loadingPatients, error: errorPatients, data: patientsData } = useQuery(GET_PATIENTS);
+//    const { login } = useAuth();
+//    const { showInfo } = useToast();
+//
+//    if (loadingDoctors || loadingPatients) {
+//        return <div className="text-center py-10 text-gray-600">Loading users...</div>;
+//    }
+//
+//    if (errorDoctors || errorPatients) {
+//        return (
+//            <div className="bg-red-100 text-red-700 p-4 rounded text-center">
+//                Error: {errorDoctors?.message || errorPatients?.message}
+//            </div>
+//        );
+//    }
+//
+//    const handleUserClick = (user) => {
+//        showInfo(`Logging in as ${user.name}...`);
+//        login(user);
+//    };
+//
+//    return (
+//        <div className="bg-white p-6 rounded shadow-md">
+//            <h2 className="text-xl font-semibold text-gray-800 mb-4">System Users</h2>
+//            <p className="text-sm text-gray-500 mb-6">Click a user to log in</p>
+//
+//            <h3 className="text-lg font-bold text-gray-700 mb-2">Doctors</h3>
+//            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+//                {doctorsData.doctors.map((doctor) => (
+//                    <div
+//                        key={doctor.id}
+//                        onClick={() => handleUserClick(doctor)}
+//                        className="p-4 border rounded hover:shadow cursor-pointer transition"
+//                    >
+//                        <h3 className="font-bold text-gray-800">{doctor.name}</h3>
+//                        <p className="text-sm text-gray-500">{doctor.email}</p>
+//                        <span
+//                            className={`inline-block mt-2 text-xs px-2 py-1 rounded ${doctor.role === "admin" ? "bg-red-500 text-white" : "bg-blue-500 text-white"
+//                                }`}
+//                        >
+//                            {doctor.role}
+//                        </span>
+//                    </div>
+//                ))}
+//            </div>
+//
+//            <h3 className="text-lg font-bold text-gray-700 mb-2">Patients</h3>
+//            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+//                {patientsData.patients.map((patient) => (
+//                    <div
+//                        key={patient.id}
+//                        onClick={() => handleUserClick(patient)}
+//                        className="p-4 border rounded hover:shadow cursor-pointer transition"
+//                    >
+//                        <h3 className="font-bold text-gray-800">{patient.name}</h3>
+//                        <p className="text-sm text-gray-500">{patient.email}</p>
+//                        <p className="text-xs text-gray-400">Phone: {patient.phoneNumber}</p>
+//                        <p className="text-xs text-gray-400">Age: {patient.age}</p>
+//                        <span className="inline-block mt-2 text-xs px-2 py-1 rounded bg-green-500 text-white">
+//                            {patient.role}
+//                        </span>
+//                    </div>
+//                ))}
+//            </div>
+//        </div>
+//    );
+//}
+//
+//export default UserList;
