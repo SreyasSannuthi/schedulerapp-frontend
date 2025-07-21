@@ -4,7 +4,7 @@ import { LOGIN_MUTATION } from "../apollo/queries";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "./Toast";
 
-function LoginForm() {
+function LoginForm({ onSwitchToSignup }) {
     const { login } = useAuth();
     const { showError } = useToast();
     const [formData, setFormData] = useState({
@@ -163,6 +163,16 @@ function LoginForm() {
                             {isLoading ? "Signing in..." : "Sign in"}
                         </button>
                     </div>
+
+                    <div className="text-center">
+                            <button
+                                type="button"
+                                onClick={onSwitchToSignup}
+                                className="text-blue-600 hover:text-blue-500 text-sm"
+                            >
+                                Don't have an account? Sign up
+                            </button>
+                        </div>
                 </form>
             </div>
         </div>

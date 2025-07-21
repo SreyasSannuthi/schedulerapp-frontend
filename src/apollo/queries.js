@@ -177,3 +177,27 @@ export const DELETE_MULTIPLE_APPOINTMENTS = gql`
         deleteMultipleAppointments(ids: $ids, requesterId: $requesterId)
     }
 `;
+
+export const SIGNUP_DOCTOR = gql`
+    mutation SignupDoctor($input: DoctorSignupInput!) {
+        signupDoctor(input: $input) {
+            message
+            success
+            userId
+            email
+            role
+        }
+    }
+`;
+
+export const SIGNUP_PATIENT = gql`
+    mutation SignupPatient($input: PatientSignupInput!) {
+        signupPatient(input: $input) {
+            message
+            success
+            userId
+            email
+            role
+        }
+    }
+`;

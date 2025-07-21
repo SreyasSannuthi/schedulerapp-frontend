@@ -89,8 +89,7 @@ function AppointmentCalendar({ selectedUserId }) {
                         appointmentCount = data.appointmentsByPatient?.length || 0;
                     }
                     if (appointmentCount > 0) {
-                        const userText = selectedUserId ? " for selected user" : "";
-                        showSuccess(`Calendar loaded with ${appointmentCount} appointment(s)${userText} 📅`);
+                        showSuccess(`Calendar loaded with ${appointmentCount} appointment(s)`);
                     }
                 }
             },

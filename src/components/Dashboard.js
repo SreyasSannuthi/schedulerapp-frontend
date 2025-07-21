@@ -7,7 +7,7 @@ import AppointmentsList from "./AppointmentsList";
 
 function Dashboard() {
     const { currentUser, logout, isAdmin } = useAuth();
-    const [activeTab, setActiveTab] = useState("calendar");
+    const [activeTab, setActiveTab] = useState("appointments");
     const [selectedUserId, setSelectedUserId] = useState(null);
 
     const { data: doctorsData } = useQuery(GET_DOCTORS, { skip: !isAdmin });
@@ -74,23 +74,37 @@ function Dashboard() {
 
           <main className="flex-1 py-6 px-4 mx-auto w-full max-w-[1000px]">
              <div className="mb-6">
-                <div className="flex gap-2">
-                   {["calendar", "profile", "appointments"].map((tab) => (
-                      <button
-                         key={tab}
-                         onClick={() => setActiveTab(tab)}
-                         className={`px-4 py-2 text-sm rounded ${activeTab === tab
-                               ? "bg-white border border-gray-300"
-                               : "bg-gray-200"
-                            }`}
-                      >
-                         {tab === "calendar" && "📅 Calendar"}
-                         {tab === "profile" && "👤 Profile"}
-                         {tab === "appointments" && "📝 Appointments"}
-                      </button>
+               <div className="flex gap-2 justify-between w-full">
+                 <div className="flex gap-2">
+                   {["appointments","calendar"].map((tab) => (
+                     <button
+                       key={tab}
+                       onClick={() => setActiveTab(tab)}
+                       className={`px-4 py-2 text-sm rounded ${activeTab === tab
+                         ? "bg-white border border-gray-300"
+                         : "bg-gray-200"
+                       }`}
+                     >
+                       {tab === "appointments" && "📝 Appointments"}
+                       {tab === "calendar" && "📅 Calendar"}
+                     </button>
                    ))}
-                </div>
+                 </div>
+
+                 <div>
+                   <button
+                     onClick={() => setActiveTab("profile")}
+                     className={`px-4 py-2 text-sm rounded ${activeTab === "profile"
+                       ? "bg-white border border-gray-300"
+                       : "bg-gray-200"
+                     }`}
+                   >
+                     👤 Profile
+                   </button>
+                 </div>
+               </div>
              </div>
+
 
              {isAdmin && activeTab === "profile" && (
                 <div className="bg-white p-4 border rounded mb-6">
