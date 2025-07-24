@@ -1,54 +1,54 @@
 import { ApolloClient, InMemoryCache, createHttpLink, from } from "@apollo/client";
 import { setContext } from '@apollo/client/link/context';
+import { onError } from "@apollo/client/link/error";
 
 const httpLink = createHttpLink({
-	uri: "http://localhost:8080/graphql",
+    uri: "http://localhost:8080/graphql",
+    credentials: 'include',
 });
 
 const authLink = setContext((_, { headers }) => {
-	const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken');
 
-	return {
-		headers: {
-			...headers,
-			authorization: token ? `Bearer ${token}` : "",
-		}
-	}
+    return {
+        headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        }
+    };
+});
+
+const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
+    if (graphQLErrors) {
+        graphQLErrors.forEach(({ message, locations, path }) => {
+            console.error(`GraphQL error: Message: ${message}, Location: ${locations}, Path: ${path}`);
+        });
+    }
+
+    if (networkError) {
+        console.error(`Network error:`, networkError);
+
+        if (networkError.statusCode === 401) {
+            // Token might be expired, redirect to login
+            localStorage.removeItem('authToken');
+            window.location.href = '/login';
+        }
+    }
 });
 
 const client = new ApolloClient({
-	link: from([authLink, httpLink]),
-	cache: new InMemoryCache({
-		typePolicies: {
-			Query: {
-				fields: {
-					getCurrentUser: {
-						merge: false,
-					},
-					getCurrentUserRole: {
-						merge: false,
-					},
-					doctors: {
-						merge: false,
-					},
-					patients: {
-						merge: false,
-					}
-				}
-			}
-		}
-	}),
-	defaultOptions: {
-		watchQuery: {
-			errorPolicy: "none",
-		},
-		query: {
-			errorPolicy: "none",
-		},
-		mutate: {
-			errorPolicy: "all",
-		},
-	},
+    link: from([errorLink, authLink, httpLink]),
+    cache: new InMemoryCache(),
+    defaultOptions: {
+        watchQuery: {
+            errorPolicy: "all",
+        },
+        query: {
+            errorPolicy: "all",
+        },
+    },
 });
 
 export default client;

@@ -10,6 +10,16 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "./Toast";
 import AppointmentForm from "./AppointmentForm";
+import {
+    Calendar,
+    Clock,
+    Eye,
+    Edit,
+    Trash2,
+    Plus,
+    AlertCircle,
+    Building2
+} from "lucide-react";
 
 function AppointmentsList({ selectedUserId }) {
     const { currentUser, isAdmin } = useAuth();
@@ -196,6 +206,7 @@ function AppointmentsList({ selectedUserId }) {
         return (
             <div className="p-4 text-center text-gray-500">
                 <div className="animate-pulse">
+                    <Clock className="w-8 h-8 mx-auto mb-2 text-gray-400" />
                     <p>Loading appointment schedule for {loadingName}...</p>
                 </div>
             </div>
@@ -205,6 +216,7 @@ function AppointmentsList({ selectedUserId }) {
     if (error) {
         return (
             <div className="p-4 text-center text-red-500">
+                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
                 <h3 className="text-lg font-bold mb-2">Unable to Load Appointment Schedule</h3>
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                     <p className="font-medium text-red-800">{error.message}</p>
@@ -212,8 +224,9 @@ function AppointmentsList({ selectedUserId }) {
                 <div className="mt-4">
                     <button
                         onClick={() => window.location.reload()}
-                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm flex items-center mx-auto"
                     >
+                        <AlertCircle className="w-4 h-4 mr-2" />
                         Refresh Page
                     </button>
                 </div>
@@ -270,35 +283,38 @@ function AppointmentsList({ selectedUserId }) {
     };
 
     return (
-        <div className="bg-white border rounded p-4">
-            <div className="flex justify-between items-center mb-4">
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
-                    <h2 className="text-lg font-semibold">{getTitle()}</h2>
+                    <h2 className="text-xl font-bold text-gray-900">{getTitle()}</h2>
                     <p className="text-sm text-gray-600">
                         {appointments.length} appointment{appointments.length !== 1 ? 's' : ''} in total
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                     {hasEditableAppointments && selectedAppointments.size > 0 && (
                         <button
                             onClick={handleBulkDelete}
                             disabled={bulkDeleting}
-                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm disabled:bg-gray-400"
+                            className="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 text-sm disabled:bg-gray-400 flex items-center"
                         >
+                            <Trash2 className="w-4 h-4 mr-1" />
                             {bulkDeleting ? "Processing..." : `Remove Selected (${selectedAppointments.size})`}
                         </button>
                     )}
                     <button
                         onClick={handleNewAppointment}
-                        className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
+                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm flex items-center whitespace-nowrap"
                     >
-                        + Schedule New Appointment
+                        <Plus className="w-4 h-4 mr-1" />
+                        Schedule New Appointment
                     </button>
                 </div>
             </div>
 
             {hasEditableAppointments && appointments.length > 0 && (
-                <div className="mb-4 p-3 bg-gray-50 rounded border">
+                <div className="bg-gray-50 rounded-lg p-3 border">
                     <label className="flex items-center gap-2 text-sm">
                         <input
                             type="checkbox"
@@ -316,30 +332,32 @@ function AppointmentsList({ selectedUserId }) {
                 </div>
             )}
 
+            {/* No Appointments */}
             {appointments.length === 0 ? (
-                <div className="text-center p-8 text-gray-600">
-                    <div className="text-4xl mb-4">📅</div>
+                <div className="text-center p-12 bg-white rounded-lg border">
+                    <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                     <h3 className="text-lg font-medium mb-2">No Scheduled Appointments</h3>
                     <p className="text-sm text-gray-500 mb-4">
                         {currentUser?.name || currentUser?.email?.split('@')[0]}, you currently have no appointments scheduled.
                     </p>
                     <button
                         onClick={handleNewAppointment}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center justify-center mx-auto"
                     >
-                        📅 Schedule Your First Appointment
+                        <Plus className="w-4 h-4 mr-2" />
+                        Schedule Your First Appointment
                     </button>
                 </div>
             ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                     {appointments.map((appointment) => {
                         const start = new Date(appointment.startTime);
                         const end = new Date(appointment.endTime);
                         const isEditable = canEdit(appointment);
 
                         return (
-                            <div key={appointment.id} className="border rounded-lg p-4">
-                                <div className="flex justify-between items-start md:items-center flex-col md:flex-row gap-3">
+                            <div key={appointment.id} className="bg-white border rounded-lg p-4">
+                                <div className="flex justify-between items-start flex-col lg:flex-row gap-3">
                                     <div className="flex items-start gap-3 flex-1">
                                         {isEditable && (
                                             <input
@@ -349,90 +367,113 @@ function AppointmentsList({ selectedUserId }) {
                                                 className="mt-1 rounded"
                                             />
                                         )}
-                                        <div className="flex-1">
+                                        <div className="flex-1 min-w-0">
+                                            {/* Role-based Headers */}
+                                            {isAdmin && (
+                                                <div className="mb-2">
+                                                    <h4 className="font-semibold text-gray-800 text-lg">Doctor: {appointment.doctorName}</h4>
+                                                    <h4 className="font-semibold text-gray-800 text-lg">Patient: {appointment.patientName}</h4>
+                                                </div>
+                                            )}
+                                            {currentUser?.role === "doctor" && (
+                                                <h4 className="font-semibold text-gray-800 text-lg mb-1">
+                                                    Patient: {appointment.patientName}
+                                                </h4>
+                                            )}
+                                            {currentUser?.role === "patient" && (
+                                                <h4 className="font-semibold text-gray-800 text-lg mb-1">
+                                                    Doctor: Dr. {appointment.doctorName}
+                                                </h4>
+                                            )}
 
-                                            <div className="flex flex-wrap items-center gap-2">
+                                            <h3 className="text-gray-900 font-medium mb-2">{appointment.title}</h3>
 
-                                                {isAdmin && (
-                                                    <div>
-                                                        <h6 className="font-bold text-gray-600 text-lg mb-1">Doctor : {appointment.doctorName}</h6>
-                                                        <h6 className="font-bold text-gray-600 text-lg mb-1">Patient: {appointment.patientName}</h6>
+                                            <div className="space-y-1 text-sm text-gray-600">
+                                                <div className="flex items-center">
+                                                    <Calendar className="w-4 h-4 mr-2" />
+                                                    <span className="font-medium">
+                                                        {start.toLocaleDateString('en-US', {
+                                                            weekday: 'long',
+                                                            year: 'numeric',
+                                                            month: 'long',
+                                                            day: 'numeric'
+                                                        })}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <Clock className="w-4 h-4 mr-2" />
+                                                    <span>
+                                                        {start.toLocaleTimeString([], {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                            hour12: true
+                                                        })}{" "}
+                                                        -{" "}
+                                                        {end.toLocaleTimeString([], {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                            hour12: true
+                                                        })}
+                                                    </span>
+                                                </div>
+
+                                                {/* Branch Information (if available) */}
+                                                {appointment.branchLocation && (
+                                                    <div className="flex items-center">
+                                                        <Building2 className="w-4 h-4 mr-2" />
+                                                        <span>{appointment.branchLocation}</span>
                                                     </div>
                                                 )}
-                                                {currentUser?.role === "doctor" && (
-                                                    <h3 className="font-bold text-gray-600 text-lg mb-1">
-                                                        Patient Name: {appointment.patientName}
-                                                    </h3>
-                                                )}
-                                                {currentUser?.role === "patient" && (
-                                                    <h3 className="font-bold text-gray-600 text-lg mb-1">
-                                                        Doctor name: Dr. {appointment.doctorName}
-                                                    </h3>
-                                                )}
                                             </div>
-                                            <h3 className="text-gray-800 text-base mb-1">
-                                                Appointment Title: {appointment.title}
-                                            </h3>
-                                            <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 mb-2">
-                                                <span className="font-medium">
-                                                    Scheduled Date: {start.toLocaleDateString()}
-                                                </span>
-                                            </div>
-                                            <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 mb-2">
-                                                <span>
-                                                    Time Slot: {start.toLocaleTimeString([], {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                    })}{" "}
-                                                    -{" "}
-                                                    {end.toLocaleTimeString([], {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                    })}
-                                                </span>
-                                            </div>
+
                                             {appointment.description && (
-                                                <p className="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded">
-                                                    Additional Notes: {appointment.description}
+                                                <p className="text-sm text-gray-600 mt-3 bg-gray-50 p-2 rounded">
+                                                    <strong>Notes:</strong> {appointment.description}
                                                 </p>
                                             )}
 
-                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                                                 Status: {appointment.status.toUpperCase()}
-                                            </span>
-
-                                            <div className="text-xs text-gray-500 pt-3">
-                                                Record Created: {new Date(appointment.createdAt).toLocaleDateString()}
+                                            <div className="flex items-center justify-between mt-3">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                                                    {appointment.status.toUpperCase()}
+                                                </span>
+                                                <span className="text-xs text-gray-500">
+                                                    Duration: {appointment.duration}
+                                                </span>
                                             </div>
-                                            <div className="text-xs text-gray-500 pt-1">
-                                                Last Modified: {new Date(appointment.updatedAt).toLocaleDateString()}
+
+                                            <div className="text-xs text-gray-500 mt-2">
+                                                <div>Created: {new Date(appointment.createdAt).toLocaleString()}</div>
+                                                <div>Updated: {new Date(appointment.updatedAt).toLocaleString()}</div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 flex-shrink-0  ">
                                         {isEditable ? (
                                             <>
                                                 <button
                                                     onClick={() => handleEditAppointment(appointment)}
-                                                    className="text-blue-600 border border-blue-600 px-4 py-2 text-sm rounded-lg hover:bg-blue-50 font-medium transition-all w-32 h-20"
+                                                    className="text-blue-600 border border-blue-600 px-3 py-2 text-base rounded hover:bg-blue-50 font-medium transition-all flex items-center w-40 h-16 justify-center"
                                                 >
-                                                    Modify
+                                                    <Edit className="w-4 h-8 mr-1" />
+                                                    Edit
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteAppointment(appointment)}
-                                                    className={`text-red-600 border border-red-600 px-4 py-2 text-sm rounded-lg font-medium transition-all w-32 h-20 ${deletingId === appointment.id
+                                                    className={`text-red-600  border border-red-600 px-3 py-2 text-base rounded font-medium transition-all flex items-center w-40 justify-center ${deletingId === appointment.id
                                                         ? "opacity-50 cursor-not-allowed"
                                                         : "hover:bg-red-50"
                                                         }`}
                                                     disabled={deletingId === appointment.id}
                                                 >
-                                                    {deletingId === appointment.id ? "Processing..." : "Remove"}
+                                                    <Trash2 className="w-4 h-8 mr-1" />
+                                                    {deletingId === appointment.id ? "..." : "Delete"}
                                                 </button>
                                             </>
                                         ) : (
-                                            <span className="text-sm text-gray-400 bg-gray-100 px-3 py-2 rounded">
-                                                👀 Read Only Access
+                                            <span className="text-sm text-gray-400 bg-gray-100 px-3 py-2 rounded flex items-center">
+                                                <Eye className="w-4 h-4 mr-1" />
+                                                View Only
                                             </span>
                                         )}
                                     </div>

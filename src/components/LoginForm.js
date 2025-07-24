@@ -6,7 +6,7 @@ import { useToast } from "./Toast";
 
 function LoginForm({ onSwitchToSignup }) {
     const { login } = useAuth();
-    const { showError } = useToast();
+    const { showError, showSuccess } = useToast();
     const [formData, setFormData] = useState({
         email: "",
         password: "",
@@ -15,7 +15,8 @@ function LoginForm({ onSwitchToSignup }) {
     const [isLoading, setIsLoading] = useState(false);
 
     const [loginMutation] = useMutation(LOGIN_MUTATION, {
-        fetchPolicy: 'no-cache'
+        fetchPolicy: 'no-cache',
+        errorPolicy: 'all'
     });
 
     const validateForm = () => {
@@ -44,24 +45,50 @@ function LoginForm({ onSwitchToSignup }) {
         setErrors({});
 
         try {
-            const { data } = await loginMutation({
+            const { data, errors: mutationErrors } = await loginMutation({
                 variables: {
                     email: formData.email.trim(),
                     password: formData.password,
                 },
             });
 
-            if (data.login.token) {
+            if (mutationErrors && mutationErrors.length > 0) {
+                const errorMessage = mutationErrors[0].message;
+                setErrors({ submit: errorMessage });
+                showError(errorMessage);
+                return;
+            }
+
+            if (data?.login?.token) {
                 const loginResult = await login(data.login);
                 if (loginResult.success) {
                     setFormData({ email: "", password: "" });
+                } else {
+                    setErrors({ submit: loginResult.error });
+                    showError(loginResult.error);
                 }
             } else {
-                setErrors({ submit: data.login.message || "Login failed" });
-                showError(data.login.message || "Login failed");
+                const errorMessage = data?.login?.message || "Login failed - no token received";
+                setErrors({ submit: errorMessage });
+                showError(errorMessage);
             }
         } catch (error) {
-            const errorMessage = error.message || "Network error. Please try again.";
+            let errorMessage = "Login failed";
+
+            if (error.networkError) {
+                if (error.networkError.statusCode === 403) {
+                    errorMessage = "Access forbidden. Please check your credentials or contact support.";
+                } else if (error.networkError.statusCode === 500) {
+                    errorMessage = "Server error. Please try again later.";
+                } else {
+                    errorMessage = `Network error: ${error.networkError.message}`;
+                }
+            } else if (error.graphQLErrors && error.graphQLErrors.length > 0) {
+                errorMessage = error.graphQLErrors[0].message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
             setErrors({ submit: errorMessage });
             showError(errorMessage);
         } finally {
@@ -99,7 +126,7 @@ function LoginForm({ onSwitchToSignup }) {
                     </p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                <div className="mt-8 space-y-6">
                     <div className="space-y-4">
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -111,9 +138,8 @@ function LoginForm({ onSwitchToSignup }) {
                                 type="email"
                                 value={formData.email}
                                 onChange={handleChange}
-                                className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
-                                    errors.email ? 'border-red-300' : 'border-gray-300'
-                                } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                                className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${errors.email ? 'border-red-300' : 'border-gray-300'
+                                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
                                 placeholder="Enter your email"
                                 disabled={isLoading}
                             />
@@ -132,9 +158,8 @@ function LoginForm({ onSwitchToSignup }) {
                                 type="password"
                                 value={formData.password}
                                 onChange={handleChange}
-                                className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
-                                    errors.password ? 'border-red-300' : 'border-gray-300'
-                                } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                                className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${errors.password ? 'border-red-300' : 'border-gray-300'
+                                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
                                 placeholder="Enter your password"
                                 disabled={isLoading}
                             />
@@ -152,28 +177,27 @@ function LoginForm({ onSwitchToSignup }) {
 
                     <div>
                         <button
-                            type="submit"
+                            onClick={handleSubmit}
                             disabled={isLoading}
-                            className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                                isLoading
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                            } transition-colors`}
+                            className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${isLoading
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                } transition-colors`}
                         >
                             {isLoading ? "Signing in..." : "Sign in"}
                         </button>
                     </div>
 
                     <div className="text-center">
-                            <button
-                                type="button"
-                                onClick={onSwitchToSignup}
-                                className="text-blue-600 hover:text-blue-500 text-sm"
-                            >
-                                Don't have an account? Sign up
-                            </button>
-                        </div>
-                </form>
+                        <button
+                            type="button"
+                            onClick={onSwitchToSignup}
+                            className="text-blue-600 hover:text-blue-500 text-sm"
+                        >
+                            Don't have an account? Sign up
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );

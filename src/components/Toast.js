@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 const ToastContext = React.createContext();
 
@@ -42,15 +43,15 @@ function Toast({ id, type, message, duration = 2000, onRemove }) {
     const getIcon = () => {
         switch (type) {
             case 'success':
-                return '✅';
+                return <CheckCircle className="w-5 h-5" />;
             case 'error':
-                return '❌';
+                return <XCircle className="w-5 h-5" />;
             case 'warning':
-                return '⚠️';
+                return <AlertTriangle className="w-5 h-5" />;
             case 'info':
-                return 'ℹ️';
+                return <Info className="w-5 h-5" />;
             default:
-                return '💬';
+                return <Info className="w-5 h-5" />;
         }
     };
 
@@ -59,7 +60,7 @@ function Toast({ id, type, message, duration = 2000, onRemove }) {
             className={`${getToastStyles()} ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}
             role="alert"
         >
-            <span className="mr-3 text-lg">{getIcon()}</span>
+            <span className="mr-3">{getIcon()}</span>
             <span className="flex-1">{message}</span>
             <button
                 onClick={() => {
@@ -68,7 +69,7 @@ function Toast({ id, type, message, duration = 2000, onRemove }) {
                 }}
                 className="ml-3 text-white hover:text-gray-200 focus:outline-none"
             >
-                ✕
+                <X className="w-4 h-4" />
             </button>
         </div>
     );

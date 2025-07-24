@@ -1,5 +1,6 @@
 import React from "react";
 import LoginForm from "./LoginForm";
+import { Calendar } from "lucide-react";
 
 function HomePage() {
 	return (
@@ -7,7 +8,7 @@ function HomePage() {
 			<nav className="bg-blue-600 text-white shadow-md sticky top-0 z-50">
 				<div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
 					<div className="flex items-center gap-2">
-						<span className="text-2xl">📅</span>
+						<Calendar className="w-8 h-8" />
 						<h1 className="text-xl font-bold">Scheduler</h1>
 					</div>
 					<div className="hidden md:flex gap-4">

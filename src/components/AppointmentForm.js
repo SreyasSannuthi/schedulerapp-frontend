@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useMutation, useQuery, useLazyQuery } from "@apollo/client";
+import { gql } from "@apollo/client";
 import {
     CREATE_APPOINTMENT,
     UPDATE_APPOINTMENT,
@@ -10,9 +11,12 @@ import {
     GET_DOCTORS,
     GET_PATIENTS,
     CHECK_COLLISION,
+    GET_DOCTOR_BRANCHES,
+    GET_HOSPITAL_BRANCHES
 } from "../apollo/queries";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "./Toast";
+import { Building2, MapPin, Phone, AlertTriangle } from "lucide-react";
 
 function AppointmentForm({
     isOpen,
@@ -21,6 +25,7 @@ function AppointmentForm({
 }) {
     const { currentUser, isAdmin } = useAuth();
     const { showSuccess, showError, showWarning } = useToast();
+
     const [formData, setFormData] = useState({
         title: "",
         description: "",
@@ -29,15 +34,21 @@ function AppointmentForm({
         status: "scheduled",
         doctorId: "",
         patientId: "",
+        branchId: "",
     });
+
     const [errors, setErrors] = useState({});
     const [clicked, setClicked] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [collisionCheck, setCollisionCheck] = useState(null);
+    const [availableBranches, setAvailableBranches] = useState([]);
 
     const { data: doctorsData } = useQuery(GET_DOCTORS);
     const { data: patientsData } = useQuery(GET_PATIENTS);
+    const { data: branchesData } = useQuery(GET_HOSPITAL_BRANCHES);
+
+    const [getDoctorBranches, { data: doctorBranchesData, loading: branchesLoading }] = useLazyQuery(GET_DOCTOR_BRANCHES);
 
     const [checkCollisionQuery, { loading: collisionLoading }] = useLazyQuery(CHECK_COLLISION, {
         onCompleted: (data) => {
@@ -48,7 +59,7 @@ function AppointmentForm({
                     : conflicts;
                 setCollisionCheck(relevantConflicts);
                 if (relevantConflicts.length > 0) {
-                    showWarning(` Found ${relevantConflicts.length} conflicting appointment(s)`);
+                    showWarning(`Found ${relevantConflicts.length} conflicting appointment(s)`);
                 }
             } else {
                 setCollisionCheck([]);
@@ -95,7 +106,12 @@ function AppointmentForm({
                 status: editAppointment.status || "scheduled",
                 doctorId: editAppointment.doctorId,
                 patientId: editAppointment.patientId,
+                branchId: editAppointment.branchId || "",
             });
+
+            if (editAppointment.doctorId) {
+                getDoctorBranches({ variables: { doctorId: editAppointment.doctorId } });
+            }
         } else {
             const now = new Date();
             const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
@@ -105,6 +121,7 @@ function AppointmentForm({
 
             if (currentUser?.role === "doctor") {
                 defaultDoctorId = currentUser.id;
+                getDoctorBranches({ variables: { doctorId: currentUser.id } });
             } else if (currentUser?.role === "patient") {
                 defaultPatientId = currentUser.id;
             }
@@ -117,13 +134,43 @@ function AppointmentForm({
                 status: "scheduled",
                 doctorId: defaultDoctorId,
                 patientId: defaultPatientId,
+                branchId: "",
             });
         }
         setErrors({});
         setClicked({});
         setShowDeleteConfirm(false);
         setCollisionCheck(null);
-    }, [editAppointment, currentUser, isOpen]);
+        setAvailableBranches([]);
+    }, [editAppointment, currentUser, isOpen, getDoctorBranches]);
+
+    useEffect(() => {
+        if (doctorBranchesData?.doctorBranches && branchesData?.hospitalBranches) {
+            const doctorBranches = doctorBranchesData.doctorBranches;
+            const allBranches = branchesData.hospitalBranches;
+
+            const doctorAvailableBranches = doctorBranches
+                .map(mapping => {
+                    const branch = allBranches.find(b => b.id === mapping.branchId);
+                    if (branch) {
+                        return {
+                            ...branch,
+                            branchDisplayName: mapping.branchCode
+                        };
+                    }
+                    return null;
+                })
+                .filter(branch => branch && branch.isActive);
+
+            setAvailableBranches(doctorAvailableBranches);
+
+            if (doctorAvailableBranches.length === 1 && !formData.branchId) {
+                setFormData(prev => ({ ...prev, branchId: doctorAvailableBranches[0].id }));
+            }
+        } else {
+            setAvailableBranches([]);
+        }
+    }, [doctorBranchesData, branchesData]);
 
     const formatDateTimeLocal = (date) => {
         const year = date.getFullYear();
@@ -179,6 +226,12 @@ function AppointmentForm({
                 }
                 break;
 
+            case "branchId":
+                if (availableBranches.length > 0 && (!value || !value.toString().trim())) {
+                    error = "Please select a branch location";
+                }
+                break;
+
             case "startTime":
                 if (!value) {
                     error = "Start time is required";
@@ -230,6 +283,11 @@ function AppointmentForm({
         const newErrors = {};
         const requiredFields = ['title', 'startTime', 'endTime', 'doctorId', 'patientId'];
 
+        // Add branchId as required if branches are available
+        if (availableBranches.length > 0) {
+            requiredFields.push('branchId');
+        }
+
         requiredFields.forEach(field => {
             const error = validateField(field, formData[field], formData);
             if (error) {
@@ -255,6 +313,14 @@ function AppointmentForm({
         const fieldError = validateField(name, value, newFormData);
         setErrors(prev => ({ ...prev, [name]: fieldError }));
 
+        // Load doctor's branches when doctor is selected
+        if (name === 'doctorId' && value) {
+            getDoctorBranches({ variables: { doctorId: value } });
+            // Reset branch selection when doctor changes
+            setFormData(prev => ({ ...prev, branchId: "" }));
+        }
+
+        // Check for collisions when relevant fields change
         if ((name === 'startTime' || name === 'endTime' || name === 'doctorId' || name === 'patientId') &&
             newFormData.doctorId && newFormData.patientId && newFormData.startTime && newFormData.endTime) {
             await checkForCollisions(newFormData.doctorId, newFormData.patientId, newFormData.startTime, newFormData.endTime);
@@ -294,6 +360,12 @@ function AppointmentForm({
 
     const areRequiredFieldsFilled = () => {
         const requiredFields = ['title', 'startTime', 'endTime', 'doctorId', 'patientId'];
+
+        // Add branchId as required if branches are available
+        if (availableBranches.length > 0) {
+            requiredFields.push('branchId');
+        }
+
         return requiredFields.every(field => {
             const value = formData[field];
             return value && value.toString().trim() !== '';
@@ -354,6 +426,10 @@ function AppointmentForm({
         e.preventDefault();
 
         const requiredFields = ['title', 'startTime', 'endTime', 'doctorId', 'patientId'];
+        if (availableBranches.length > 0) {
+            requiredFields.push('branchId');
+        }
+
         const newClicked = { ...clicked };
         requiredFields.forEach(field => {
             newClicked[field] = true;
@@ -410,13 +486,18 @@ function AppointmentForm({
                     patientId: formData.patientId,
                 };
 
+                // Add branch information if available
+                if (formData.branchId) {
+                    appointmentData.branchId = formData.branchId;
+                }
+
                 await createAppointment({
                     variables: {
                         input: appointmentData,
                     },
                 });
 
-                showSuccess("Appointment created successfully! ✅");
+                showSuccess("Appointment created successfully!");
             }
 
             onClose();
@@ -442,6 +523,10 @@ function AppointmentForm({
         }
     };
 
+    const getSelectedBranch = () => {
+        return availableBranches.find(branch => branch.id === formData.branchId);
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -458,12 +543,11 @@ function AppointmentForm({
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <div className="p-6 space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Title *
                         </label>
-
                         <input
                             type="text"
                             name="title"
@@ -511,9 +595,9 @@ function AppointmentForm({
                                 } ${!canEdit() || (currentUser?.role === "doctor" && !isAdmin) ? "bg-gray-100" : ""}`}
                         >
                             <option value="">Select doctor</option>
-                            {doctorsData?.doctors?.map((doctor) => (
+                            {doctorsData?.doctors?.filter(doctor => doctor.role !== 'admin').map((doctor) => (
                                 <option key={doctor.id} value={doctor.id}>
-                                    {doctor.name} ({doctor.role})
+                                    Dr. {doctor.name}
                                 </option>
                             ))}
                         </select>
@@ -521,6 +605,50 @@ function AppointmentForm({
                             <p className="text-red-500 text-xs mt-1">{errors.doctorId}</p>
                         )}
                     </div>
+
+                    {/* Branch Selection - Show only when doctor is selected and has branches */}
+                    {formData.doctorId && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Branch Location {availableBranches.length > 0 && "*"}
+                            </label>
+                            {branchesLoading ? (
+                                <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
+                                    Loading available branches...
+                                </div>
+                            ) : availableBranches.length > 0 ? (
+                                <>
+                                    <select
+                                        name="branchId"
+                                        value={formData.branchId}
+                                        onChange={handleChange}
+                                        onBlur={handleBlur}
+                                        onFocus={handleFocus}
+                                        disabled={!canEdit()}
+                                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${shouldShowError('branchId') ? "border-red-500" : "border-gray-300"
+                                            } ${!canEdit() ? "bg-gray-100" : ""}`}
+                                    >
+                                        <option value="">Select branch location</option>
+                                        {availableBranches.map((branch) => (
+                                            <option key={branch.id} value={branch.id}>
+                                                {branch.branchCode} - {branch.city}, {branch.state}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {shouldShowError('branchId') && (
+                                        <p className="text-red-500 text-xs mt-1">{errors.branchId}</p>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="w-full px-3 py-2 border border-yellow-300 rounded-md bg-yellow-50 text-yellow-800 text-sm">
+                                    <div className="flex items-center">
+                                        <AlertTriangle className="w-4 h-4 mr-2" />
+                                        <span>Selected doctor is not assigned to any branches</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -609,13 +737,13 @@ function AppointmentForm({
 
                     {collisionLoading && (
                         <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                            <p className="text-blue-700 text-sm"> Checking for conflicts...</p>
+                            <p className="text-blue-700 text-sm">Checking for conflicts...</p>
                         </div>
                     )}
 
                     {collisionCheck && collisionCheck.length > 0 && (
                         <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                            <p className="text-red-700 text-sm font-semibold mb-2">️ Scheduling Conflicts:</p>
+                            <p className="text-red-700 text-sm font-semibold mb-2">⚠️ Scheduling Conflicts:</p>
                             {collisionCheck.map((conflict, index) => (
                                 <p key={index} className="text-red-600 text-xs">
                                     • "{conflict.title}" - {new Date(conflict.startTime).toLocaleString()} to {new Date(conflict.endTime).toLocaleString()}
@@ -651,7 +779,7 @@ function AppointmentForm({
 
                         {canEdit() && (
                             <button
-                                type="submit"
+                                onClick={handleSubmit}
                                 disabled={!isFormValid()}
                                 className={`flex-1 px-4 py-2 text-white font-medium rounded-md transition-all ${isFormValid()
                                     ? "bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
@@ -682,7 +810,7 @@ function AppointmentForm({
                             </p>
                         </div>
                     )}
-                </form>
+                </div>
 
                 {showDeleteConfirm && (
                     <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-xl">

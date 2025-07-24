@@ -36,6 +36,9 @@ export const GET_DOCTORS = gql`
             name
             email
             role
+            startDate
+            endDate
+            isActive
         }
     }
 `;
@@ -50,6 +53,43 @@ export const GET_PATIENTS = gql`
             age
             role
         }
+    }
+`;
+
+export const SIGNUP_DOCTOR = gql`
+    mutation SignupDoctor($input: DoctorSignupInput!) {
+        signupDoctor(input: $input) {
+            message
+            success
+            userId
+            email
+            role
+        }
+    }
+`;
+
+export const SIGNUP_PATIENT = gql`
+    mutation SignupPatient($input: PatientSignupInput!) {
+        signupPatient(input: $input) {
+            message
+            success
+            userId
+            email
+            role
+        }
+    }
+`;
+
+
+export const DELETE_DOCTOR = gql`
+    mutation DeleteDoctor($id: ID!) {
+        deleteDoctor(id: $id)
+    }
+`;
+
+export const DELETE_PATIENT = gql`
+    mutation DeletePatient($id: ID!) {
+        deletePatient(id: $id)
     }
 `;
 
@@ -72,7 +112,6 @@ export const GET_APPOINTMENTS = gql`
         }
     }
 `;
-
 
 export const GET_APPOINTMENTS_BY_DOCTOR = gql`
     query GetAppointmentsByDoctor($doctorId: ID!) {
@@ -135,6 +174,7 @@ export const CREATE_APPOINTMENT = gql`
             description
             doctorId
             patientId
+            branchId
             doctorName
             patientName
             startTime
@@ -157,6 +197,7 @@ export const UPDATE_APPOINTMENT = gql`
             doctorName
             patientId
             patientName
+            branchId
             startTime
             endTime
             status
@@ -178,26 +219,254 @@ export const DELETE_MULTIPLE_APPOINTMENTS = gql`
     }
 `;
 
-export const SIGNUP_DOCTOR = gql`
-    mutation SignupDoctor($input: DoctorSignupInput!) {
-        signupDoctor(input: $input) {
-            message
-            success
-            userId
+export const GET_HOSPITAL_BRANCHES = gql`
+    query GetHospitalBranches {
+        hospitalBranches {
+            id
+            branchCode
+            address
+            city
+            state
+            zipCode
             email
-            role
+            phoneNumber
+            isActive
+            startedAt
         }
     }
 `;
 
-export const SIGNUP_PATIENT = gql`
-    mutation SignupPatient($input: PatientSignupInput!) {
-        signupPatient(input: $input) {
-            message
-            success
-            userId
+export const GET_ACTIVE_BRANCHES = gql`
+    query GetActiveBranches {
+        activeBranches {
+            id
+            branchCode
+            address
+            city
+            state
+            zipCode
+            email
+            phoneNumber
+            isActive
+            startedAt
+        }
+    }
+`;
+
+export const GET_HOSPITAL_BRANCH = gql`
+    query GetHospitalBranch($id: ID!) {
+        hospitalBranch(id: $id) {
+            id
+            branchCode
+            address
+            city
+            state
+            zipCode
+            email
+            phoneNumber
+            isActive
+            startedAt
+        }
+    }
+`;
+
+export const CREATE_HOSPITAL_BRANCH = gql`
+    mutation CreateHospitalBranch($input: HospitalBranchInput!) {
+        createHospitalBranch(input: $input) {
+            id
+            branchCode
+            address
+            city
+            state
+            zipCode
+            email
+            phoneNumber
+            isActive
+            startedAt
+        }
+    }
+`;
+
+export const UPDATE_HOSPITAL_BRANCH = gql`
+    mutation UpdateHospitalBranch($id: ID!, $input: HospitalBranchUpdateInput!) {
+        updateHospitalBranch(id: $id, input: $input) {
+            id
+            branchCode
+            address
+            city
+            state
+            zipCode
+            email
+            phoneNumber
+            isActive
+            startedAt
+        }
+    }
+`;
+
+export const DELETE_HOSPITAL_BRANCH = gql`
+    mutation DeleteHospitalBranch($id: ID!) {
+        deleteHospitalBranch(id: $id)
+    }
+`;
+
+export const GET_DOCTOR_BRANCH_MAPPINGS = gql`
+    query GetDoctorBranchMappings {
+        doctorBranchMappings {
+            id
+            doctorId
+            branchId
+            doctorName
+            branchCode
+        }
+    }
+`;
+
+export const GET_DOCTOR_BRANCHES = gql`
+    query GetDoctorBranches($doctorId: ID!) {
+        doctorBranches(doctorId: $doctorId) {
+            id
+            doctorId
+            branchId
+            doctorName
+            branchCode
+        }
+    }
+`;
+
+export const GET_BRANCH_DOCTORS = gql`
+    query GetBranchDoctors($branchId: ID!) {
+        branchDoctors(branchId: $branchId) {
+            id
+            doctorId
+            branchId
+            doctorName
+            branchCode
+        }
+    }
+`;
+
+export const ASSIGN_DOCTOR_TO_BRANCH = gql`
+    mutation AssignDoctorToBranch($input: DoctorBranchMappingInput!) {
+        assignDoctorToBranch(input: $input) {
+            id
+            doctorId
+            branchId
+            doctorName
+            branchCode
+        }
+    }
+`;
+
+export const REMOVE_DOCTOR_FROM_BRANCH = gql`
+    mutation RemoveDoctorFromBranch($doctorId: ID!, $branchId: ID!) {
+        removeDoctorFromBranch(doctorId: $doctorId, branchId: $branchId)
+    }
+`;
+
+export const GET_APPOINTMENTS_BY_DATE_RANGE = gql`
+    query GetAppointmentsByDateRange($adminId: ID!, $startDate: String!, $endDate: String!) {
+        appointmentsByDateRange(adminId: $adminId, startDate: $startDate, endDate: $endDate) {
+            id
+            title
+            description
+            doctorId
+            patientId
+            doctorName
+            patientName
+            startTime
+            endTime
+            status
+            duration
+            createdAt
+            updatedAt
+        }
+    }
+`;
+
+export const GET_APPOINTMENTS_BY_DOCTOR_AND_DATE_RANGE = gql`
+    query GetAppointmentsByDoctorAndDateRange($doctorId: ID!, $startDate: String!, $endDate: String!) {
+        appointmentsByDoctorAndDateRange(doctorId: $doctorId, startDate: $startDate, endDate: $endDate) {
+            id
+            title
+            description
+            doctorId
+            patientId
+            doctorName
+            patientName
+            startTime
+            endTime
+            status
+            duration
+            createdAt
+            updatedAt
+        }
+    }
+`;
+
+export const GET_APPOINTMENTS_BY_PATIENT_AND_DATE_RANGE = gql`
+    query GetAppointmentsByPatientAndDateRange($patientId: ID!, $startDate: String!, $endDate: String!) {
+        appointmentsByPatientAndDateRange(patientId: $patientId, startDate: $startDate, endDate: $endDate) {
+            id
+            title
+            description
+            doctorId
+            patientId
+            doctorName
+            patientName
+            startTime
+            endTime
+            status
+            duration
+            createdAt
+            updatedAt
+        }
+    }
+`;
+
+export const GET_APPOINTMENTS_BY_STATUS = gql`
+    query GetAppointmentsByStatus($status: String!, $requesterId: ID!) {
+        appointmentsByStatus(status: $status, requesterId: $requesterId) {
+            id
+            title
+            description
+            doctorId
+            patientId
+            doctorName
+            patientName
+            startTime
+            endTime
+            status
+            duration
+            createdAt
+            updatedAt
+        }
+    }
+`;
+
+export const GET_DOCTORS_WITH_BRANCHES = gql`
+    query GetDoctorsWithBranches {
+        doctors {
+            id
+            name
             email
             role
+            createdAt
+        }
+        doctorBranchMappings {
+            id
+            doctorId
+            branchId
+            doctorName
+            branchCode
+        }
+        hospitalBranches {
+            id
+            branchCode
+            address
+            city
+            state
+            isActive
         }
     }
 `;

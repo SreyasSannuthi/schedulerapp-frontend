@@ -16,123 +16,80 @@ export function useAuth() {
 export function AuthProvider({ children }) {
     const [currentUser, setCurrentUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [authToken, setAuthToken] = useState(null);
-    const [userDatabaseId, setUserDatabaseId] = useState(null);
-    const { showSuccess, showInfo, showError } = useToast();
-
+    const { showSuccess, showError } = useToast();
     const apolloClient = useApolloClient();
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
         if (token) {
-            setAuthToken(token);
+            // Verify token is still valid
+            fetchCurrentUser();
         } else {
             setIsLoading(false);
         }
     }, []);
 
-    const { data: userData, loading: userLoading, error: userError, refetch: refetchUser } = useQuery(GET_CURRENT_USER, {
-        skip: !authToken,
-        fetchPolicy: 'network-only',
-        onCompleted: (data) => {
+    const fetchCurrentUser = async () => {
+        try {
+            const { data } = await apolloClient.query({
+                query: GET_CURRENT_USER,
+                fetchPolicy: 'network-only'
+            });
+
             if (data?.getCurrentUser) {
-                setCurrentUser({
-                    email: data.getCurrentUser,
-                    id: data.getCurrentUser,
-                });
+                await fetchUserDetails(data.getCurrentUser);
             } else {
                 logout();
             }
-            setIsLoading(false);
-        },
-        onError: (error) => {
+        } catch (error) {
+            console.error('Error fetching current user:', error);
             logout();
+        } finally {
             setIsLoading(false);
         }
-    });
+    };
 
-    const { data: roleData, refetch: refetchRole } = useQuery(GET_CURRENT_USER_ROLE, {
-        skip: !authToken || !currentUser,
-        fetchPolicy: 'network-only',
-        onCompleted: (data) => {
-            if (data?.getCurrentUserRole && currentUser) {
-                setCurrentUser(prev => ({
-                    ...prev,
-                    role: data.getCurrentUserRole.toLowerCase(),
-                }));
-            }
-        }
-    });
+    const fetchUserDetails = async (email) => {
+        try {
+            const [doctorsResult, patientsResult] = await Promise.all([
+                apolloClient.query({ query: GET_DOCTORS, fetchPolicy: 'network-only' }),
+                apolloClient.query({ query: GET_PATIENTS, fetchPolicy: 'network-only' })
+            ]);
 
-    const { data: doctorsData, refetch: refetchDoctors } = useQuery(GET_DOCTORS, {
-        skip: !currentUser?.email,
-        fetchPolicy: 'network-only',
-        onCompleted: (data) => {
-            if (currentUser && data.doctors) {
-                const doctor = data.doctors.find(d => d.email === currentUser.email);
-                if (doctor) {
-                    setUserDatabaseId(doctor.id);
-                    setCurrentUser(prev => ({
-                        ...prev,
-                        id: doctor.id,
-                        name: doctor.name,
-                        role: doctor.role.toLowerCase(),
-                        phoneNumber: doctor.phoneNumber,
-                        age: doctor.age,
-                    }));
-                }
-            }
-        }
-    });
+            const doctor = doctorsResult.data?.doctors?.find(d => d.email === email);
+            const patient = patientsResult.data?.patients?.find(p => p.email === email);
 
-    const { data: patientsData, refetch: refetchPatients } = useQuery(GET_PATIENTS, {
-        skip: !currentUser?.email || userDatabaseId,
-        fetchPolicy: 'network-only',
-        onCompleted: (data) => {
-            if (currentUser && data.patients && !userDatabaseId) {
-                const patient = data.patients.find(p => p.email === currentUser.email);
-                if (patient) {
-                    setUserDatabaseId(patient.id);
-                    setCurrentUser(prev => ({
-                        ...prev,
-                        id: patient.id,
-                        name: patient.name,
-                        role: patient.role.toLowerCase(),
-                        phoneNumber: patient.phoneNumber,
-                        age: patient.age,
-                    }));
-                }
+            const user = doctor || patient;
+            if (user) {
+                setCurrentUser({
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role.toLowerCase(),
+                    phoneNumber: user.phoneNumber,
+                    age: user.age,
+                });
             }
+        } catch (error) {
+            console.error('Error fetching user details:', error);
         }
-    });
+    };
 
     const login = async (authResponse) => {
         try {
-            const { token, username, role, message } = authResponse;
+            const { token, username, role } = authResponse;
 
             if (!token) {
-                throw new Error(message || "No token received");
+                throw new Error("No token received");
             }
+
+            localStorage.setItem('authToken', token);
 
             await apolloClient.clearStore();
 
-            localStorage.setItem('authToken', token);
-            setAuthToken(token);
+            await fetchUserDetails(username);
 
-            setCurrentUser(null);
-            setUserDatabaseId(null);
-
-            setCurrentUser({
-                email: username,
-                id: username,
-                role: role.toLowerCase(),
-            });
-
-            const displayName = username.split('@')[0];
-            const capitalizedName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
-            showSuccess(`Welcome back, ${capitalizedName}! 🎉`);
-
-            setIsLoading(false);
+            showSuccess('Login successful!');
             return { success: true };
         } catch (error) {
             showError(error.message || "Login failed");
@@ -141,40 +98,21 @@ export function AuthProvider({ children }) {
     };
 
     const logout = async () => {
-        const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "User";
-
-        await apolloClient.clearStore();
-
-        setCurrentUser(null);
-        setAuthToken(null);
-        setUserDatabaseId(null);
-
         localStorage.removeItem('authToken');
-
+        setCurrentUser(null);
+        await apolloClient.clearStore();
         setIsLoading(false);
-        showInfo(`Goodbye, ${userName}! 👋`);
     };
 
-    const isAuthenticated = !!currentUser && !!authToken;
-
-    const isAdmin = currentUser && (
-        currentUser.role === "admin" ||
-        currentUser.role === "ADMIN"
-    );
-
     return (
-        <AuthContext.Provider
-            value={{
-                currentUser,
-                isAuthenticated,
-                isAdmin,
-                login,
-                logout,
-                isLoading,
-                authToken,
-                userDatabaseId,
-            }}
-        >
+        <AuthContext.Provider value={{
+            currentUser,
+            isAuthenticated: !!currentUser,
+            isAdmin: currentUser?.role === 'admin',
+            login,
+            logout,
+            isLoading,
+        }}>
             {children}
         </AuthContext.Provider>
     );
