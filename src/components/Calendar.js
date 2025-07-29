@@ -5,7 +5,8 @@ import { useQuery } from "@apollo/client";
 import {
     GET_APPOINTMENTS,
     GET_APPOINTMENTS_BY_DOCTOR,
-    GET_APPOINTMENTS_BY_PATIENT
+    GET_APPOINTMENTS_BY_PATIENT,
+    GET_APPOINTMENTS_BY_BRANCH
 } from "../apollo/queries";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "./Toast";
@@ -15,7 +16,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 const localizer = momentLocalizer(moment);
 
 function AppointmentCalendar({ selectedUserId }) {
-    const { currentUser, isAdmin } = useAuth();
+    const { currentUser, isAdmin, hasFullAccess, hasBranchAccess } = useAuth();
     const { showSuccess, showError } = useToast();
     const [view, setView] = useState("month");
     const [date, setDate] = useState(new Date());
@@ -42,10 +43,11 @@ function AppointmentCalendar({ selectedUserId }) {
 
     const getQueryConfig = () => {
         if (!currentUser) return null;
-        if (isAdmin) {
+
+        if (isAdmin || hasFullAccess) {
             return {
                 query: GET_APPOINTMENTS,
-                variables: { adminId: currentUser.id }
+                variables: { requesterId: currentUser.id }
             };
         } else if (currentUser.role === "doctor") {
             return {
@@ -56,6 +58,18 @@ function AppointmentCalendar({ selectedUserId }) {
             return {
                 query: GET_APPOINTMENTS_BY_PATIENT,
                 variables: { patientId: currentUser.id }
+            };
+        } else if (currentUser.role === "receptionist") {
+            if (!currentUser.branchId) {
+                console.warn('Receptionist user does not have branchId, using fallback query');
+                return {
+                    query: GET_APPOINTMENTS,
+                    variables: { requesterId: currentUser.id }
+                };
+            }
+            return {
+                query: GET_APPOINTMENTS_BY_BRANCH,
+                variables: { branchId: currentUser.branchId, requesterId: currentUser.id }
             };
         }
         return null;
@@ -73,7 +87,7 @@ function AppointmentCalendar({ selectedUserId }) {
             onCompleted: (data) => {
                 if (data) {
                     let appointmentCount = 0;
-                    if (isAdmin) {
+                    if (isAdmin|| hasFullAccess) {
                         let allAppointments = data.appointments?.length || 0;
                         if (selectedUserId) {
                             const filteredAppointments = (data.appointments || []).filter(appointment =>
@@ -87,6 +101,14 @@ function AppointmentCalendar({ selectedUserId }) {
                         appointmentCount = data.appointmentsByDoctor?.length || 0;
                     } else if (currentUser?.role === "patient") {
                         appointmentCount = data.appointmentsByPatient?.length || 0;
+                    } else if (currentUser?.role === "receptionist") {
+                        if (data.appointmentsByBranch) {
+                            appointmentCount = data.appointmentsByBranch.length || 0;
+                        } else if (data.appointments) {
+                            appointmentCount = data.appointments.length || 0;
+                        } else {
+                            appointmentCount = 0;
+                        }
                     }
                     if (appointmentCount > 0) {
                         showSuccess(`Calendar loaded with ${appointmentCount} appointment(s)`);
@@ -125,9 +147,9 @@ function AppointmentCalendar({ selectedUserId }) {
 
     let appointments = [];
     if (data) {
-        if (isAdmin) {
+        if (isAdmin || hasFullAccess) {
             appointments = data.appointments || [];
-            if (selectedUserId) {
+            if (selectedUserId && selectedUserId !== currentUser.id) {
                 appointments = appointments.filter(appointment =>
                     appointment.doctorId === selectedUserId || appointment.patientId === selectedUserId
                 );
@@ -136,16 +158,26 @@ function AppointmentCalendar({ selectedUserId }) {
             appointments = data.appointmentsByDoctor || [];
         } else if (currentUser?.role === "patient") {
             appointments = data.appointmentsByPatient || [];
+        } else if (currentUser?.role === "receptionist") {
+            if (data.appointmentsByBranch) {
+                appointments = data.appointmentsByBranch || [];
+            } else if (data.appointments) {
+                appointments = data.appointments || [];
+            } else {
+                appointments = [];
+            }
         }
     }
 
     const getEventTitle = (appointment) => {
-        if (isAdmin) {
+        if (isAdmin || hasFullAccess) {
             return `${appointment.title} (Dr. ${appointment.doctorName} - ${appointment.patientName})`;
         } else if (currentUser?.role === "doctor") {
             return `${appointment.title} (Patient: ${appointment.patientName})`;
         } else if (currentUser?.role === "patient") {
             return `${appointment.title} (Dr. ${appointment.doctorName})`;
+        } else if (currentUser?.role === "receptionist") {
+            return `${appointment.title} (Dr. ${appointment.doctorName} - ${appointment.patientName})`;
         }
         return appointment.title;
     };

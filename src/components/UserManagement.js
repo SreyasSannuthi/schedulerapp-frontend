@@ -1,21 +1,24 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
-import { gql } from '@apollo/client';
-import { GET_DOCTORS, GET_PATIENTS, DELETE_DOCTOR,DELETE_PATIENT } from '../apollo/queries';
+import { GET_DOCTORS, GET_PATIENTS, DELETE_DOCTOR, DELETE_PATIENT, UPDATE_DOCTOR } from '../apollo/queries';
 import { useToast } from './Toast';
 import SignupForm from './SignupForm';
 import {
   Users,
   UserPlus,
   Trash2,
+  Edit,
   Crown,
   UserCheck,
   User,
+  PhoneCall,
   Mail,
   Phone,
   Calendar,
-  Shield,
-  AlertTriangle
+  AlertTriangle,
+  Building2,
+  Save,
+  X
 } from 'lucide-react';
 
 function UserManagement() {
@@ -23,8 +26,16 @@ function UserManagement() {
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editingDoctor, setEditingDoctor] = useState(null);
+  const [showDoctorEditForm, setShowDoctorEditForm] = useState(false);
   const [filterRole, setFilterRole] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [doctorEditForm, setDoctorEditForm] = useState({
+    name: '',
+    email: '',
+    isActive: true
+  });
 
   const { data: doctorsData, loading: loadingDoctors, refetch: refetchDoctors } = useQuery(GET_DOCTORS);
   const { data: patientsData, loading: loadingPatients, refetch: refetchPatients } = useQuery(GET_PATIENTS);
@@ -32,11 +43,11 @@ function UserManagement() {
   const [deleteDoctor] = useMutation(DELETE_DOCTOR, {
     refetchQueries: [{ query: GET_DOCTORS }],
     onCompleted: () => {
-      showSuccess('Doctor deleted successfully');
+      showSuccess('Hospital Staff deleted successfully');
       setShowDeleteConfirm(false);
       setUserToDelete(null);
     },
-    onError: (error) => showError(`Failed to delete doctor: ${error.message}`)
+    onError: (error) => showError(`Failed to delete staff: ${error.message}`)
   });
 
   const [deletePatient] = useMutation(DELETE_PATIENT, {
@@ -47,6 +58,17 @@ function UserManagement() {
       setUserToDelete(null);
     },
     onError: (error) => showError(`Failed to delete patient: ${error.message}`)
+  });
+
+  const [updateDoctor, { loading: updatingDoctor }] = useMutation(UPDATE_DOCTOR, {
+    refetchQueries: [{ query: GET_DOCTORS }],
+    onCompleted: () => {
+      showSuccess('Hospital Staff updated successfully');
+      setShowDoctorEditForm(false);
+      setEditingDoctor(null);
+      resetDoctorEditForm();
+    },
+    onError: (error) => showError(`Failed to update staff: ${error.message}`)
   });
 
   if (loadingDoctors || loadingPatients) {
@@ -65,7 +87,6 @@ function UserManagement() {
     ...(patientsData?.patients || []).map(patient => ({ ...patient, userType: 'patient' }))
   ];
 
-  // Filter users based on role and search term
   const filteredUsers = allUsers.filter(user => {
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -76,6 +97,52 @@ function UserManagement() {
   const handleDeleteUser = (user) => {
     setUserToDelete(user);
     setShowDeleteConfirm(true);
+  };
+
+  const handleEditDoctor = (doctor) => {
+    setEditingDoctor(doctor);
+    setDoctorEditForm({
+      name: doctor.name,
+      email: doctor.email,
+      isActive: doctor.isActive
+    });
+    setShowDoctorEditForm(true);
+  };
+
+  const resetDoctorEditForm = () => {
+    setDoctorEditForm({
+      name: '',
+      email: '',
+      isActive: true
+    });
+    setEditingDoctor(null);
+    setShowDoctorEditForm(false);
+  };
+
+  const handleDoctorEditFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setDoctorEditForm(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleUpdateDoctor = async () => {
+    if (!editingDoctor) return;
+
+    try {
+      await updateDoctor({
+        variables: {
+          id: editingDoctor.id,
+          input: {
+            ...doctorEditForm,
+            role: editingDoctor.role
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Update doctor error:', error);
+    }
   };
 
   const confirmDelete = async () => {
@@ -97,6 +164,8 @@ function UserManagement() {
       case 'admin': return Crown;
       case 'doctor': return UserCheck;
       case 'patient': return User;
+      case 'receptionist': return Building2;
+      case 'customer_care': return PhoneCall;
       default: return User;
     }
   };
@@ -106,6 +175,8 @@ function UserManagement() {
       case 'admin': return 'bg-red-100 text-red-800 border-red-200';
       case 'doctor': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'patient': return 'bg-green-100 text-green-800 border-green-200';
+      case 'receptionist': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'customer_care': return 'bg-gray-100 text-gray-800 border-gray-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -115,8 +186,10 @@ function UserManagement() {
     const adminCount = allUsers.filter(u => u.role === 'admin').length;
     const doctorCount = allUsers.filter(u => u.role === 'doctor').length;
     const patientCount = allUsers.filter(u => u.role === 'patient').length;
+    const customer_careCount = allUsers.filter(u => u.role === 'customer_care').length;
+    const receptionistCount = allUsers.filter(u => u.role === 'receptionist').length;
 
-    return { totalUsers, adminCount, doctorCount, patientCount };
+    return { totalUsers, adminCount, doctorCount, patientCount, customer_careCount, receptionistCount };
   };
 
   const stats = getStats();
@@ -146,7 +219,6 @@ function UserManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 flex items-center">
@@ -164,7 +236,6 @@ function UserManagement() {
         </button>
       </div>
 
-      {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg border shadow-sm">
           <div className="flex items-center">
@@ -202,9 +273,26 @@ function UserManagement() {
             </div>
           </div>
         </div>
+        <div className="bg-white p-4 rounded-lg border shadow-sm">
+          <div className="flex items-center">
+            <PhoneCall className="w-8 h-8 text-green-600" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Customer Care</p>
+              <p className="text-2xl font-bold text-green-600">{stats.customer_careCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border shadow-sm">
+            <div className="flex items-center">
+                <Building2 className="w-8 h-8 text-purple-600" />
+                <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-600">Receptionists</p>
+                    <p className="text-2xl font-bold text-purple-600">{stats.receptionistCount}</p>
+                </div>
+            </div>
+        </div>
       </div>
 
-      {/* Filters */}
       <div className="bg-white p-4 rounded-lg border shadow-sm">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
@@ -227,17 +315,19 @@ function UserManagement() {
               <option value="all">All Roles</option>
               <option value="admin">Admin</option>
               <option value="doctor">Doctor</option>
+              <option value="customer_care">Customer Care</option>
+              <option value="receptionist">Receptionist</option>
               <option value="patient">Patient</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* Users Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredUsers.map((user) => {
           const RoleIcon = getRoleIcon(user.role);
           const isAdmin = user.role === 'admin';
+          const isDoctor = user.userType === 'doctor';
 
           return (
             <div key={user.id} className="bg-white p-6 rounded-lg border shadow-sm hover:shadow-md transition-shadow">
@@ -254,13 +344,24 @@ function UserManagement() {
                   </div>
                 </div>
                 {!isAdmin && (
-                  <button
-                    onClick={() => handleDeleteUser(user)}
-                    className="text-red-600 hover:text-red-800 p-1 rounded-md hover:bg-red-50"
-                    title="Delete user"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex space-x-1">
+                    {isDoctor && (
+                      <button
+                        onClick={() => handleEditDoctor(user)}
+                        className="text-blue-600 hover:text-blue-800 p-1 rounded-md hover:bg-blue-50"
+                        title="Edit doctor"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteUser(user)}
+                      className="text-red-600 hover:text-red-800 p-1 rounded-md hover:bg-red-50"
+                      title="Delete user"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -288,23 +389,32 @@ function UserManagement() {
                   <div className="flex items-center text-gray-500 text-xs">
                     <Calendar className="w-3 h-3 mr-1" />
                     <span>Joined: {(() => {
-                      if (!user.startDate) {
+                      const dateStr = user.startDate || user.createdAt;
+
+                      if (!dateStr) {
                         return 'N/A';
                       }
+
                       try {
-                        const dateStr = user.startDate;
                         if (typeof dateStr === 'string' && dateStr.includes(' - ')) {
-                          const datePart = dateStr.split(' - ')[0];
-                          const date = new Date(datePart);
-                          return isNaN(date.getTime()) ? dateStr : date.toLocaleDateString();
+                          return dateStr;
                         } else {
                           const date = new Date(dateStr);
                           return isNaN(date.getTime()) ? dateStr : date.toLocaleDateString();
                         }
                       } catch (error) {
-                        return user.startDate || 'N/A';
+                        return dateStr || 'N/A';
                       }
                     })()}</span>
+                  </div>
+                )}
+
+                {isDoctor && (
+                  <div className="flex items-center text-xs">
+                    <div className={`w-2 h-2 rounded-full mr-2 ${user.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <span className={user.isActive ? 'text-green-600' : 'text-red-600'}>
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
                 )}
               </div>
@@ -326,7 +436,89 @@ function UserManagement() {
         </div>
       )}
 
-      {showDeleteConfirm && (
+      {showDoctorEditForm && editingDoctor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg w-full max-w-md shadow-xl">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Edit Doctor</h3>
+                <button
+                  onClick={resetDoctorEditForm}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={doctorEditForm.name}
+                    onChange={handleDoctorEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={doctorEditForm.email}
+                    onChange={handleDoctorEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    name="isActive"
+                    checked={doctorEditForm.isActive}
+                    onChange={handleDoctorEditFormChange}
+                    className="h-4 w-4 text-blue-600 rounded"
+                  />
+                  <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
+                    Active Staff
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={resetDoctorEditForm}
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateDoctor}
+                  disabled={updatingDoctor}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors disabled:bg-gray-400 flex items-center justify-center"
+                >
+                  {updatingDoctor ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Saving...
+                    </div>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                        {`Update ${editingDoctor.role}`}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && userToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg w-full max-w-md shadow-xl">
             <div className="p-6">
@@ -336,7 +528,7 @@ function UserManagement() {
               </div>
 
               <p className="text-gray-600 mb-6">
-                Are you sure you want to delete <strong>{userToDelete?.name}</strong>?
+                Are you sure you want to delete <strong>{userToDelete.name}</strong>?
                 This action cannot be undone and will remove all associated data.
               </p>
 

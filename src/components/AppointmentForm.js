@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useMutation, useQuery, useLazyQuery } from "@apollo/client";
-import { gql } from "@apollo/client";
 import {
     CREATE_APPOINTMENT,
     UPDATE_APPOINTMENT,
@@ -12,18 +11,19 @@ import {
     GET_PATIENTS,
     CHECK_COLLISION,
     GET_DOCTOR_BRANCHES,
-    GET_HOSPITAL_BRANCHES
+    GET_HOSPITAL_BRANCHES,
+    GET_DOCTOR_BRANCH_MAPPINGS
 } from "../apollo/queries";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "./Toast";
-import { Building2, MapPin, Phone, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 function AppointmentForm({
     isOpen,
     onClose,
     editAppointment = null,
 }) {
-    const { currentUser, isAdmin } = useAuth();
+    const { currentUser, isAdmin, hasFullAccess, isReceptionist } = useAuth();
     const { showSuccess, showError, showWarning } = useToast();
 
     const [formData, setFormData] = useState({
@@ -47,6 +47,10 @@ function AppointmentForm({
     const { data: doctorsData } = useQuery(GET_DOCTORS);
     const { data: patientsData } = useQuery(GET_PATIENTS);
     const { data: branchesData } = useQuery(GET_HOSPITAL_BRANCHES);
+
+    const { data: allDoctorBranchesData } = useQuery(GET_DOCTOR_BRANCH_MAPPINGS, {
+        skip: !isReceptionist || !currentUser?.branchId
+    });
 
     const [getDoctorBranches, { data: doctorBranchesData, loading: branchesLoading }] = useLazyQuery(GET_DOCTOR_BRANCHES);
 
@@ -73,8 +77,8 @@ function AppointmentForm({
     });
 
     const getRefetchQueries = () => {
-        if (isAdmin) {
-            return [{ query: GET_APPOINTMENTS, variables: { adminId: currentUser.id } }];
+        if (isAdmin || hasFullAccess || currentUser?.role === "customer_care") {
+            return [{ query: GET_APPOINTMENTS, variables: { requesterId: currentUser.id } }];
         } else if (currentUser?.role === "doctor") {
             return [{ query: GET_APPOINTMENTS_BY_DOCTOR, variables: { doctorId: currentUser.id } }];
         } else if (currentUser?.role === "patient") {
@@ -118,12 +122,15 @@ function AppointmentForm({
 
             let defaultDoctorId = "";
             let defaultPatientId = "";
+            let defaultBranchId = "";
 
             if (currentUser?.role === "doctor") {
                 defaultDoctorId = currentUser.id;
                 getDoctorBranches({ variables: { doctorId: currentUser.id } });
             } else if (currentUser?.role === "patient") {
                 defaultPatientId = currentUser.id;
+            } else if (currentUser?.role === "receptionist" && currentUser.branchId) {
+                defaultBranchId = currentUser.branchId;
             }
 
             setFormData({
@@ -134,14 +141,13 @@ function AppointmentForm({
                 status: "scheduled",
                 doctorId: defaultDoctorId,
                 patientId: defaultPatientId,
-                branchId: "",
+                branchId: defaultBranchId,
             });
         }
         setErrors({});
         setClicked({});
         setShowDeleteConfirm(false);
         setCollisionCheck(null);
-        setAvailableBranches([]);
     }, [editAppointment, currentUser, isOpen, getDoctorBranches]);
 
     useEffect(() => {
@@ -227,7 +233,7 @@ function AppointmentForm({
                 break;
 
             case "branchId":
-                if (availableBranches.length > 0 && (!value || !value.toString().trim())) {
+                if ((availableBranches.length > 0 || isReceptionist) && (!value || !value.toString().trim())) {
                     error = "Please select a branch location";
                 }
                 break;
@@ -283,8 +289,7 @@ function AppointmentForm({
         const newErrors = {};
         const requiredFields = ['title', 'startTime', 'endTime', 'doctorId', 'patientId'];
 
-        // Add branchId as required if branches are available
-        if (availableBranches.length > 0) {
+        if (availableBranches.length > 0 || isReceptionist) {
             requiredFields.push('branchId');
         }
 
@@ -313,14 +318,11 @@ function AppointmentForm({
         const fieldError = validateField(name, value, newFormData);
         setErrors(prev => ({ ...prev, [name]: fieldError }));
 
-        // Load doctor's branches when doctor is selected
         if (name === 'doctorId' && value) {
             getDoctorBranches({ variables: { doctorId: value } });
-            // Reset branch selection when doctor changes
             setFormData(prev => ({ ...prev, branchId: "" }));
         }
 
-        // Check for collisions when relevant fields change
         if ((name === 'startTime' || name === 'endTime' || name === 'doctorId' || name === 'patientId') &&
             newFormData.doctorId && newFormData.patientId && newFormData.startTime && newFormData.endTime) {
             await checkForCollisions(newFormData.doctorId, newFormData.patientId, newFormData.startTime, newFormData.endTime);
@@ -361,8 +363,7 @@ function AppointmentForm({
     const areRequiredFieldsFilled = () => {
         const requiredFields = ['title', 'startTime', 'endTime', 'doctorId', 'patientId'];
 
-        // Add branchId as required if branches are available
-        if (availableBranches.length > 0) {
+        if (availableBranches.length > 0 || isReceptionist) {
             requiredFields.push('branchId');
         }
 
@@ -426,7 +427,7 @@ function AppointmentForm({
         e.preventDefault();
 
         const requiredFields = ['title', 'startTime', 'endTime', 'doctorId', 'patientId'];
-        if (availableBranches.length > 0) {
+        if (availableBranches.length > 0 || isReceptionist) {
             requiredFields.push('branchId');
         }
 
@@ -466,6 +467,10 @@ function AppointmentForm({
                     status: formData.status,
                 };
 
+                if (formData.branchId) {
+                    updateData.branchId = formData.branchId;
+                }
+
                 await updateAppointment({
                     variables: {
                         id: editAppointment.id,
@@ -474,7 +479,7 @@ function AppointmentForm({
                     },
                 });
 
-                showSuccess("Appointment updated successfully! ✏️");
+                showSuccess("Appointment updated successfully! ");
             } else {
                 const appointmentData = {
                     title: formData.title.trim(),
@@ -486,7 +491,6 @@ function AppointmentForm({
                     patientId: formData.patientId,
                 };
 
-                // Add branch information if available
                 if (formData.branchId) {
                     appointmentData.branchId = formData.branchId;
                 }
@@ -501,7 +505,6 @@ function AppointmentForm({
             }
 
             onClose();
-
         } catch (error) {
             console.error("Error saving appointment:", error);
 
@@ -525,6 +528,32 @@ function AppointmentForm({
 
     const getSelectedBranch = () => {
         return availableBranches.find(branch => branch.id === formData.branchId);
+    };
+
+    const getFilteredDoctors = () => {
+        if (!doctorsData?.doctors) return [];
+
+        const allDoctors = doctorsData.doctors.filter(doctor => doctor.role === 'doctor');
+
+        if (isReceptionist && currentUser.branchId && allDoctorBranchesData?.doctorBranchMappings) {
+            const doctorBranchMappings = allDoctorBranchesData.doctorBranchMappings || [];
+
+            const doctorsInBranch = doctorBranchMappings
+                .filter(mapping => mapping.branchId === currentUser.branchId)
+                .map(mapping => mapping.doctorId);
+
+            return allDoctors.filter(doctor => doctorsInBranch.includes(doctor.id));
+        }
+
+        return allDoctors;
+    };
+
+    const getReceptionistBranch = () => {
+        if (!isReceptionist || !currentUser?.branchId || !branchesData?.hospitalBranches) {
+            return null;
+        }
+
+        return branchesData.hospitalBranches.find(branch => branch.id === currentUser.branchId);
     };
 
     if (!isOpen) return null;
@@ -595,7 +624,7 @@ function AppointmentForm({
                                 } ${!canEdit() || (currentUser?.role === "doctor" && !isAdmin) ? "bg-gray-100" : ""}`}
                         >
                             <option value="">Select doctor</option>
-                            {doctorsData?.doctors?.filter(doctor => doctor.role !== 'admin').map((doctor) => (
+                            {getFilteredDoctors().map((doctor) => (
                                 <option key={doctor.id} value={doctor.id}>
                                     Dr. {doctor.name}
                                 </option>
@@ -606,13 +635,20 @@ function AppointmentForm({
                         )}
                     </div>
 
-                    {/* Branch Selection - Show only when doctor is selected and has branches */}
-                    {formData.doctorId && (
+                    {(formData.doctorId || currentUser?.role === "doctor" || isReceptionist) && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Branch Location {availableBranches.length > 0 && "*"}
+                                Branch Location {(availableBranches.length > 0 || isReceptionist) && "*"}
                             </label>
-                            {branchesLoading ? (
+                            {isReceptionist && currentUser?.branchId ? (
+                                <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700">
+                                    {getReceptionistBranch() ?
+                                        `${getReceptionistBranch().branchCode} - ${getReceptionistBranch().city}, ${getReceptionistBranch().state}` :
+                                        `${currentUser.branchCode} - ${currentUser.branchCity}, ${currentUser.branchState}`
+                                    }
+                                    <input type="hidden" name="branchId" value={formData.branchId} />
+                                </div>
+                            ) : branchesLoading ? (
                                 <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
                                     Loading available branches...
                                 </div>

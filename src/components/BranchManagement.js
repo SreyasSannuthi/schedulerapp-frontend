@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
-import { GET_DOCTORS,
-    REMOVE_DOCTOR_FROM_BRANCH,
-    GET_HOSPITAL_BRANCHES,
-    CREATE_HOSPITAL_BRANCH,
-    GET_DOCTOR_BRANCH_MAPPINGS,
-    UPDATE_HOSPITAL_BRANCH,
-    DELETE_HOSPITAL_BRANCH,
-    ASSIGN_DOCTOR_TO_BRANCH
- } from '../apollo/queries';
+import {
+  GET_DOCTORS,
+  REMOVE_DOCTOR_FROM_BRANCH,
+  GET_HOSPITAL_BRANCHES,
+  CREATE_HOSPITAL_BRANCH,
+  GET_DOCTOR_BRANCH_MAPPINGS,
+  UPDATE_HOSPITAL_BRANCH,
+  DELETE_HOSPITAL_BRANCH,
+  ASSIGN_DOCTOR_TO_BRANCH
+} from '../apollo/queries';
 
 import { useToast } from './Toast';
 import {
@@ -36,8 +37,12 @@ function BranchManagement() {
   const [editingBranch, setEditingBranch] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [branchToDelete, setBranchToDelete] = useState(null);
+
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState('');
+
+  const [selectedBranchForReceptionist, setSelectedBranchForReceptionist] = useState('');
+  const [selectedReceptionist, setSelectedReceptionist] = useState('');
 
   const [branchForm, setBranchForm] = useState({
     branchCode: '',
@@ -85,7 +90,7 @@ function BranchManagement() {
   const [assignDoctor] = useMutation(ASSIGN_DOCTOR_TO_BRANCH, {
     refetchQueries: [{ query: GET_DOCTOR_BRANCH_MAPPINGS }],
     onCompleted: () => {
-      showSuccess('Doctor assigned to branch successfully!');
+      showSuccess('Staff assigned to branch successfully!');
       setSelectedDoctor('');
       setSelectedBranch('');
     },
@@ -203,7 +208,8 @@ function BranchManagement() {
   const doctors = doctorsData?.doctors || [];
   const mappings = mappingsData?.doctorBranchMappings || [];
 
-  const availableDoctors = doctors.filter(doctor => doctor.role !== 'admin');
+  const availableDoctors = doctors.filter(doctor => doctor.role === 'doctor');
+  const availableReceptionists = doctors.filter(doctor => doctor.role === 'receptionist');
 
   const isDoctorAssigned = (doctorId, branchId) => {
     return mappings.some(mapping => mapping.doctorId === doctorId && mapping.branchId === branchId);
@@ -213,9 +219,47 @@ function BranchManagement() {
     return mappings.filter(mapping => mapping.branchId === branchId);
   };
 
+  const getDoctorMappings = () => {
+    return mappings.filter(mapping => {
+      const staff = doctors.find(d => d.id === mapping.doctorId);
+      return staff && staff.role === 'doctor';
+    });
+  };
+
+  const getReceptionistMappings = () => {
+    return mappings.filter(mapping => {
+      const staff = doctors.find(d => d.id === mapping.doctorId);
+      return staff && staff.role === 'receptionist';
+    });
+  };
+
+  const handleAssignReceptionist = async () => {
+    if (!selectedReceptionist || !selectedBranchForReceptionist) {
+      showError('Please select both receptionist and branch');
+      return;
+    }
+
+    const receptionist = doctors.find(d => d.id === selectedReceptionist);
+    const branch = branches.find(b => b.id === selectedBranchForReceptionist);
+
+    await assignDoctor({
+      variables: {
+        input: {
+          doctorId: selectedReceptionist,
+          branchId: selectedBranchForReceptionist,
+          doctorName: receptionist.name,
+          branchCode: branch.branchCode
+        }
+      }
+    });
+
+    setSelectedReceptionist('');
+    setSelectedBranchForReceptionist('');
+  };
+
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900 flex items-center">
           <Building2 className="w-6 h-6 mr-2" />
@@ -224,35 +268,41 @@ function BranchManagement() {
         <p className="text-gray-600">Manage hospital branches and doctor assignments</p>
       </div>
 
-      {/* Tabs */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('branches')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'branches'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'branches'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
           >
             <Building2 className="w-4 h-4 inline mr-2" />
             Branches ({branches.length})
           </button>
           <button
-            onClick={() => setActiveTab('assignments')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'assignments'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            onClick={() => setActiveTab('doctorAssignments')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'doctorAssignments'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
           >
             <Users className="w-4 h-4 inline mr-2" />
-            Doctor Assignments ({mappings.length})
+            Doctor Assignments ({getDoctorMappings().length})
+          </button>
+          <button
+            onClick={() => setActiveTab('receptionistAssignments')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'receptionistAssignments'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+          >
+            <UserCheck className="w-4 h-4 inline mr-2" />
+            Receptionist Assignments ({getReceptionistMappings().length})
           </button>
         </nav>
       </div>
 
-      {/* Branches Tab */}
       {activeTab === 'branches' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
@@ -272,7 +322,6 @@ function BranchManagement() {
             </button>
           </div>
 
-          {/* Branch Form Modal */}
           {showBranchForm && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
               <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -424,7 +473,6 @@ function BranchManagement() {
             </div>
           )}
 
-          {/* Branches Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {branches.map((branch) => (
               <div key={branch.id} className="bg-white p-6 rounded-lg border shadow-sm">
@@ -435,9 +483,8 @@ function BranchManagement() {
                     </div>
                     <div className="ml-3">
                       <h3 className="font-semibold text-gray-900">{branch.branchCode}</h3>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        branch.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${branch.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
                         {branch.isActive ? <CheckCircle className="w-3 h-3 mr-1" /> : <Clock className="w-3 h-3 mr-1" />}
                         {branch.isActive ? 'Active' : 'Inactive'}
                       </span>
@@ -499,15 +546,13 @@ function BranchManagement() {
         </div>
       )}
 
-      {/* Doctor Assignments Tab */}
-      {activeTab === 'assignments' && (
+      {activeTab === 'doctorAssignments' && (
         <div className="space-y-6">
           <div>
             <h3 className="text-lg font-medium text-gray-900">Doctor-Branch Assignments</h3>
             <p className="text-sm text-gray-600">Assign doctors to work at specific branch locations</p>
           </div>
 
-          {/* Assignment Form */}
           <div className="bg-white p-6 rounded-lg border">
             <h4 className="text-md font-medium text-gray-900 mb-4">Assign Doctor to Branch</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -559,13 +604,12 @@ function BranchManagement() {
             </div>
           </div>
 
-          {/* Assignments List */}
           <div className="bg-white rounded-lg border">
             <div className="px-6 py-4 border-b">
               <h4 className="text-md font-medium text-gray-900">Current Assignments</h4>
             </div>
             <div className="divide-y">
-              {mappings.map((mapping) => (
+              {getDoctorMappings().map((mapping) => (
                 <div key={mapping.id} className="px-6 py-4 flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center">
@@ -589,10 +633,10 @@ function BranchManagement() {
               ))}
             </div>
 
-            {mappings.length === 0 && (
+            {getDoctorMappings().length === 0 && (
               <div className="px-6 py-12 text-center">
                 <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No assignments yet</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No doctor assignments yet</h3>
                 <p className="text-gray-600">Start by assigning doctors to branch locations above.</p>
               </div>
             )}
@@ -600,6 +644,108 @@ function BranchManagement() {
         </div>
       )}
 
+      {activeTab === 'receptionistAssignments' && (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900">Receptionist-Branch Assignments</h3>
+            <p className="text-sm text-gray-600">Assign receptionists to work at specific branch locations</p>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg border">
+            <h4 className="text-md font-medium text-gray-900 mb-4">Assign Receptionist to Branch</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select Receptionist</label>
+                <select
+                  value={selectedReceptionist}
+                  onChange={(e) => setSelectedReceptionist(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                 <option value="">Choose a receptionist...</option>
+                   {availableReceptionists
+                     .filter((receptionist) =>
+                       !mappings.some((mapping) => mapping.doctorId === receptionist.id)
+                     )
+                     .map((receptionist) => (
+                       <option key={receptionist.id} value={receptionist.id}>
+                         {receptionist.name}
+                       </option>
+                     ))}
+
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select Branch</label>
+                <select
+                  value={selectedBranchForReceptionist}
+                  onChange={(e) => setSelectedBranchForReceptionist(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Choose a branch...</option>
+                  {branches.filter(b => b.isActive).map((branch) => (
+                    <option
+                      key={branch.id}
+                      value={branch.id}
+                      disabled={selectedReceptionist && isDoctorAssigned(selectedReceptionist, branch.id)}
+                    >
+                      {branch.branchCode} - {branch.city}
+                      {selectedReceptionist && isDoctorAssigned(selectedReceptionist, branch.id) && ' (Already assigned)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <button
+                  onClick={handleAssignReceptionist}
+                  disabled={!selectedReceptionist || !selectedBranchForReceptionist || (selectedReceptionist && selectedBranchForReceptionist && isDoctorAssigned(selectedReceptionist, selectedBranchForReceptionist))}
+                  className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Assign
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border">
+            <div className="px-6 py-4 border-b">
+              <h4 className="text-md font-medium text-gray-900">Current Receptionist Assignments</h4>
+            </div>
+            <div className="divide-y">
+              {getReceptionistMappings().map((mapping) => (
+                <div key={mapping.id} className="px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center">
+                      <UserCheck className="w-5 h-5 text-purple-600 mr-2" />
+                      <span className="font-medium">{mapping.doctorName}</span>
+                    </div>
+                    <div className="text-gray-400">→</div>
+                    <div className="flex items-center">
+                      <Building2 className="w-5 h-5 text-green-600 mr-2" />
+                      <span>{mapping.branchCode}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveMapping(mapping)}
+                    className="text-red-600 hover:text-red-800 p-2 rounded-md hover:bg-red-50"
+                    title="Remove assignment"
+                  >
+                    <UserMinus className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {getReceptionistMappings().length === 0 && (
+              <div className="px-6 py-12 text-center">
+                <UserCheck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No receptionist assignments yet</h3>
+                <p className="text-gray-600">Start by assigning receptionists to branch locations above.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {showDeleteConfirm && branchToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

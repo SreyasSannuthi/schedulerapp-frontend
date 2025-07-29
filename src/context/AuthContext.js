@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useQuery, useApolloClient } from "@apollo/client";
-import { GET_CURRENT_USER, GET_CURRENT_USER_ROLE, GET_DOCTORS, GET_PATIENTS } from "../apollo/queries";
+import { useApolloClient } from "@apollo/client";
+import { GET_CURRENT_USER, GET_DOCTORS, GET_PATIENTS, GET_DOCTOR_BRANCHES, GET_HOSPITAL_BRANCHES } from "../apollo/queries";
 import { useToast } from "../components/Toast";
 
 const AuthContext = createContext(null);
@@ -22,7 +22,6 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         const token = localStorage.getItem('authToken');
         if (token) {
-            // Verify token is still valid
             fetchCurrentUser();
         } else {
             setIsLoading(false);
@@ -61,14 +60,49 @@ export function AuthProvider({ children }) {
 
             const user = doctor || patient;
             if (user) {
-                setCurrentUser({
+                const baseUserData = {
                     id: user.id,
                     name: user.name,
                     email: user.email,
                     role: user.role.toLowerCase(),
                     phoneNumber: user.phoneNumber,
                     age: user.age,
-                });
+                };
+
+                if (user.role.toLowerCase() === 'receptionist') {
+                    try {
+                        const [branchMappingResult, branchesResult] = await Promise.all([
+                            apolloClient.query({
+                                query: GET_DOCTOR_BRANCHES,
+                                variables: { doctorId: user.id },
+                                fetchPolicy: 'network-only'
+                            }),
+                            apolloClient.query({
+                                query: GET_HOSPITAL_BRANCHES,
+                                fetchPolicy: 'network-only'
+                            })
+                        ]);
+
+                        if (branchMappingResult.data?.doctorBranches && branchMappingResult.data.doctorBranches.length > 0) {
+                            const branchMapping = branchMappingResult.data.doctorBranches[0]; // Assume receptionist is mapped to one branch
+                            baseUserData.branchId = branchMapping.branchId;
+                            baseUserData.branchCode = branchMapping.branchCode;
+
+                            if (branchesResult.data?.hospitalBranches) {
+                                const fullBranch = branchesResult.data.hospitalBranches.find(b => b.id === branchMapping.branchId);
+                                if (fullBranch) {
+                                    baseUserData.branchName = fullBranch.branchCode;
+                                    baseUserData.branchCity = fullBranch.city;
+                                    baseUserData.branchState = fullBranch.state;
+                                }
+                            }
+                        }
+                    } catch (branchError) {
+                        console.error('Error fetching receptionist branch:', branchError);
+                    }
+                }
+
+                setCurrentUser(baseUserData);
             }
         } catch (error) {
             console.error('Error fetching user details:', error);
@@ -104,11 +138,76 @@ export function AuthProvider({ children }) {
         setIsLoading(false);
     };
 
+    const isAdmin = currentUser && (
+        currentUser.role === "admin" ||
+        currentUser.role === "ADMIN"
+    );
+
+    const isCustomerCare = currentUser && (
+        currentUser.role === "customer_care" ||
+        currentUser.role === "CUSTOMER_CARE"
+    );
+
+    const isReceptionist = currentUser && (
+        currentUser.role === "receptionist" ||
+        currentUser.role === "RECEPTIONIST"
+    );
+
+    const isDoctor = currentUser && (
+        currentUser.role === "doctor" ||
+        currentUser.role === "DOCTOR"
+    );
+
+    const isPatient = currentUser && (
+        currentUser.role === "patient" ||
+        currentUser.role === "PATIENT"
+    );
+
+    const hasFullAccess = currentUser && (
+        currentUser.role === "admin" ||
+        currentUser.role === "ADMIN" ||
+        currentUser.role === "customer_care" ||
+        currentUser.role === "CUSTOMER_CARE"
+    );
+
+    const hasBranchAccess = currentUser && (
+        currentUser.role === "admin" ||
+        currentUser.role === "ADMIN" ||
+        currentUser.role === "customer_care" ||
+        currentUser.role === "CUSTOMER_CARE" ||
+        currentUser.role === "receptionist" ||
+        currentUser.role === "RECEPTIONIST" ||
+        currentUser.role === "doctor" ||
+        currentUser.role === "DOCTOR"
+    );
+
+    const isStaff = currentUser && (
+        currentUser.role !== "patient" &&
+        currentUser.role !== "PATIENT"
+    );
+
+    const canManageAppointments = currentUser && (
+        currentUser.role === "admin" ||
+        currentUser.role === "ADMIN" ||
+        currentUser.role === "customer_care" ||
+        currentUser.role === "CUSTOMER_CARE" ||
+        currentUser.role === "receptionist" ||
+        currentUser.role === "RECEPTIONIST"
+    );
+
     return (
         <AuthContext.Provider value={{
             currentUser,
             isAuthenticated: !!currentUser,
-            isAdmin: currentUser?.role === 'admin',
+            isAdmin,
+            isCustomerCare,
+            isReceptionist,
+            isDoctor,
+            isPatient,
+            hasFullAccess,
+            hasBranchAccess,
+            isStaff,
+            canManageAppointments,
             login,
             logout,
             isLoading,

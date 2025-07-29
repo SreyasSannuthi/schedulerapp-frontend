@@ -18,11 +18,12 @@ import {
   LogOut,
   Crown,
   UserCheck,
+  PhoneCall,
   Stethoscope
 } from 'lucide-react';
 
 function Dashboard() {
-  const { currentUser, logout, isAdmin } = useAuth();
+  const { currentUser, logout, isAdmin, hasFullAccess } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -47,7 +48,16 @@ function Dashboard() {
         { id: 'users', label: 'User Management', icon: Users },
         { id: 'branches', label: 'Branch Management', icon: Building2 },
       ];
-    } else if (currentUser?.role === 'doctor') {
+    } else if (hasFullAccess) {
+      return baseItems;
+    }
+    else if (currentUser?.role === 'receptionist') {
+      return [
+        ...baseItems,
+        { id: 'branch-details', label: 'My Branch', icon: Building2 },
+      ];
+    }
+    else if (currentUser?.role === 'doctor') {
       return [
         ...baseItems,
         { id: 'branch-details', label: 'Branch Details', icon: Building2 },
@@ -65,6 +75,8 @@ function Dashboard() {
       case 'admin': return Crown;
       case 'doctor': return UserCheck;
       case 'patient': return User;
+      case 'receptionist': return Building2;
+      case 'customer_care': return PhoneCall;
       default: return User;
     }
   };
@@ -74,6 +86,7 @@ function Dashboard() {
       case 'admin': return 'bg-red-500 text-white';
       case 'doctor': return 'bg-blue-500 text-white';
       case 'patient': return 'bg-green-500 text-white';
+      case 'receptionist': return 'bg-purple-500 text-white';
       default: return 'bg-gray-500 text-white';
     }
   };
@@ -81,8 +94,10 @@ function Dashboard() {
   const getDashboardTitle = () => {
     switch (currentUser?.role?.toLowerCase()) {
       case 'admin': return 'Admin Dashboard';
+      case 'customer_care': return 'Customer Care Portal';
       case 'doctor': return 'Doctor Portal';
       case 'patient': return 'Patient Portal';
+      case 'receptionist': return 'Receptionist Dashboard';
       default: return 'Dashboard';
     }
   };
@@ -90,7 +105,8 @@ function Dashboard() {
   const renderContent = () => {
     switch (activeTab) {
       case 'appointments':
-        return <AppointmentsList selectedUserId={isAdmin ? null : currentUser?.id} />;
+        const appointmentUserId = (isAdmin || hasFullAccess) ? null : currentUser?.id;
+                    return <AppointmentsList selectedUserId={appointmentUserId} />;
       case 'calendar':
         return <AppointmentCalendar selectedUserId={isAdmin ? null : currentUser?.id} />;
       case 'users':
@@ -98,11 +114,11 @@ function Dashboard() {
       case 'branches':
         return isAdmin ? <BranchManagement /> : null;
       case 'branch-details':
-        return currentUser?.role === 'doctor' ? <DoctorBranchDetails doctorId={currentUser.id} /> : null;
+        return (currentUser?.role === 'doctor' || currentUser?.role === 'receptionist') ? <DoctorBranchDetails doctorId={currentUser.id} /> : null;
       case 'profile':
         return <UserProfile />;
       default:
-        return <AppointmentsList selectedUserId={isAdmin ? null : currentUser?.id}/>;
+        return <AppointmentsList selectedUserId={isAdmin ? null : currentUser?.id} />;
     }
   };
 

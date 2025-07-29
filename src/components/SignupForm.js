@@ -134,7 +134,6 @@ function SignupForm({ onSwitchToLogin }) {
 
             if (result.success) {
                 showSuccess(result.message );
-                // Reset form
                 setFormData({
                     name: "",
                     email: "",

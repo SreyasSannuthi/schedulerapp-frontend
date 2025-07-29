@@ -4,8 +4,10 @@ import {
     GET_APPOINTMENTS,
     GET_APPOINTMENTS_BY_DOCTOR,
     GET_APPOINTMENTS_BY_PATIENT,
+    GET_APPOINTMENTS_BY_BRANCH,
     DELETE_APPOINTMENT,
-    DELETE_MULTIPLE_APPOINTMENTS
+    DELETE_MULTIPLE_APPOINTMENTS,
+    GET_HOSPITAL_BRANCHES
 } from "../apollo/queries";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "./Toast";
@@ -22,7 +24,7 @@ import {
 } from "lucide-react";
 
 function AppointmentsList({ selectedUserId }) {
-    const { currentUser, isAdmin } = useAuth();
+    const { currentUser, hasFullAccess } = useAuth();
     const { showSuccess, showError } = useToast();
 
     const [showForm, setShowForm] = useState(false);
@@ -36,10 +38,11 @@ function AppointmentsList({ selectedUserId }) {
 
     const getQueryConfig = () => {
         if (!currentUser) return null;
-        if (isAdmin) {
+
+        if (hasFullAccess) {
             return {
                 query: GET_APPOINTMENTS,
-                variables: { adminId: currentUser.id }
+                variables: { requesterId: currentUser.id }
             };
         } else if (currentUser.role === "doctor") {
             return {
@@ -50,6 +53,18 @@ function AppointmentsList({ selectedUserId }) {
             return {
                 query: GET_APPOINTMENTS_BY_PATIENT,
                 variables: { patientId: currentUser.id }
+            };
+        } else if (currentUser.role === "receptionist") {
+            if (!currentUser.branchId) {
+                console.warn('Receptionist user does not have branchId, using fallback query');
+                return {
+                    query: GET_APPOINTMENTS,
+                    variables: { requesterId: currentUser.id }
+                };
+            }
+            return {
+                query: GET_APPOINTMENTS_BY_BRANCH,
+                variables: { branchId: currentUser.branchId, requesterId: currentUser.id }
             };
         }
         return null;
@@ -64,7 +79,7 @@ function AppointmentsList({ selectedUserId }) {
         onCompleted: (data) => {
             if (data) {
                 let appointmentCount = 0;
-                if (isAdmin) {
+                if (hasFullAccess) {
                     const allAppointments = data.appointments || [];
                     if (selectedUserId) {
                         appointmentCount = allAppointments.filter(a =>
@@ -77,6 +92,14 @@ function AppointmentsList({ selectedUserId }) {
                     appointmentCount = data.appointmentsByDoctor?.length || 0;
                 } else if (currentUser?.role === "patient") {
                     appointmentCount = data.appointmentsByPatient?.length || 0;
+                } else if (currentUser?.role === "receptionist") {
+                    if (data.appointmentsByBranch) {
+                        appointmentCount = data.appointmentsByBranch.length || 0;
+                    } else if (data.appointments) {
+                        appointmentCount = data.appointments.length || 0;
+                    } else {
+                        appointmentCount = 0;
+                    }
                 }
                 if (appointmentCount > 0) {
                     showSuccess(`Successfully loaded ${appointmentCount} appointment(s)`);
@@ -86,6 +109,10 @@ function AppointmentsList({ selectedUserId }) {
         onError: (error) => {
             showError(`Unable to load appointments: ${error.message}`);
         }
+    });
+
+    const { data: branchesData, loading: branchesLoading, error: branchesError } = useQuery(GET_HOSPITAL_BRANCHES, {
+        fetchPolicy: 'cache-first'
     });
 
     const [deleteAppointment] = useMutation(DELETE_APPOINTMENT, {
@@ -181,9 +208,10 @@ function AppointmentsList({ selectedUserId }) {
     };
 
     const canEdit = (appointment) => {
-        if (isAdmin) return true;
+        if (hasFullAccess) return true;
         if (currentUser?.role === "doctor") return appointment.doctorId === currentUser.id;
         if (currentUser?.role === "patient") return appointment.patientId === currentUser.id;
+        if (currentUser?.role === "receptionist") return true;
         return false;
     };
 
@@ -195,9 +223,12 @@ function AppointmentsList({ selectedUserId }) {
 
     const getTitle = () => {
         const displayName = currentUser?.name || currentUser?.email?.split('@')[0] || "User";
-        if (isAdmin && !selectedUserId) return "Appointment Management Dashboard";
+        if (hasFullAccess && !selectedUserId) {
+            return "Appointment Management Dashboard";
+        }
         if (currentUser?.role === "doctor") return `Dr. ${displayName}'s Appointment Schedule`;
         if (currentUser?.role === "patient") return `${displayName}'s Medical Appointments`;
+        if (currentUser?.role === "receptionist") return `Branch Appointment Management`;
         return "My Appointment Schedule";
     };
 
@@ -236,9 +267,9 @@ function AppointmentsList({ selectedUserId }) {
 
     let appointments = [];
     if (data) {
-        if (isAdmin) {
+        if (hasFullAccess) {
             appointments = data.appointments || [];
-            if (selectedUserId) {
+            if (selectedUserId && selectedUserId !== currentUser.id) {
                 appointments = appointments.filter(appointment =>
                     appointment.doctorId === selectedUserId || appointment.patientId === selectedUserId
                 );
@@ -247,6 +278,14 @@ function AppointmentsList({ selectedUserId }) {
             appointments = data.appointmentsByDoctor || [];
         } else if (currentUser?.role === "patient") {
             appointments = data.appointmentsByPatient || [];
+        } else if (currentUser?.role === "receptionist") {
+            if (data.appointmentsByBranch) {
+                appointments = data.appointmentsByBranch || [];
+            } else if (data.appointments) {
+                appointments = data.appointments || [];
+            } else {
+                appointments = [];
+            }
         }
     }
 
@@ -282,9 +321,30 @@ function AppointmentsList({ selectedUserId }) {
         );
     };
 
+    const getBranchDisplay = (appointment) => {
+        if (!appointment.branchId) {
+            return null;
+        }
+
+        if (branchesLoading) {
+            return "Loading branch info...";
+        }
+
+        if (branchesError || !branchesData?.hospitalBranches) {
+            return "Branch info unavailable";
+        }
+
+        const branch = branchesData.hospitalBranches.find(b => b.id === appointment.branchId);
+
+        if (branch) {
+            return `${branch.branchCode} - ${branch.city}, ${branch.state}`;
+        }
+
+        return "Branch not found";
+    };
+
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-gray-900">{getTitle()}</h2>
@@ -332,13 +392,12 @@ function AppointmentsList({ selectedUserId }) {
                 </div>
             )}
 
-            {/* No Appointments */}
             {appointments.length === 0 ? (
                 <div className="text-center p-12 bg-white rounded-lg border">
                     <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                     <h3 className="text-lg font-medium mb-2">No Scheduled Appointments</h3>
                     <p className="text-sm text-gray-500 mb-4">
-                        {currentUser?.name || currentUser?.email?.split('@')[0]}, you currently have no appointments scheduled.
+                        {currentUser?.name || currentUser?.email?.split('@')[0]}, you currently have no appointments to display.
                     </p>
                     <button
                         onClick={handleNewAppointment}
@@ -368,22 +427,21 @@ function AppointmentsList({ selectedUserId }) {
                                             />
                                         )}
                                         <div className="flex-1 min-w-0">
-                                            {/* Role-based Headers */}
-                                            {isAdmin && (
+                                            {hasFullAccess && (
                                                 <div className="mb-2">
                                                     <h4 className="font-semibold text-gray-800 text-lg">Doctor: {appointment.doctorName}</h4>
                                                     <h4 className="font-semibold text-gray-800 text-lg">Patient: {appointment.patientName}</h4>
                                                 </div>
                                             )}
                                             {currentUser?.role === "doctor" && (
-                                                <h4 className="font-semibold text-gray-800 text-lg mb-1">
+                                                <h3 className="font-semibold text-gray-800 text-lg mb-1">
                                                     Patient: {appointment.patientName}
-                                                </h4>
+                                                </h3>
                                             )}
                                             {currentUser?.role === "patient" && (
-                                                <h4 className="font-semibold text-gray-800 text-lg mb-1">
+                                                <h3 className="font-semibold text-gray-800 text-lg mb-1">
                                                     Doctor: Dr. {appointment.doctorName}
-                                                </h4>
+                                                </h3>
                                             )}
 
                                             <h3 className="text-gray-900 font-medium mb-2">{appointment.title}</h3>
@@ -417,13 +475,20 @@ function AppointmentsList({ selectedUserId }) {
                                                     </span>
                                                 </div>
 
-                                                {/* Branch Information (if available) */}
-                                                {appointment.branchLocation && (
-                                                    <div className="flex items-center">
-                                                        <Building2 className="w-4 h-4 mr-2" />
-                                                        <span>{appointment.branchLocation}</span>
-                                                    </div>
-                                                )}
+                                                {(() => {
+                                                    const branchDisplay = getBranchDisplay(appointment);
+                                                    return branchDisplay ? (
+                                                        <div className="flex items-center">
+                                                            <Building2 className="w-4 h-4 mr-2" />
+                                                            <span>{branchDisplay}</span>
+                                                        </div>
+                                                    ) : appointment.branchId ? (
+                                                        <div className="flex items-center">
+                                                            <Building2 className="w-4 h-4 mr-2" />
+                                                            <span className="text-gray-500">Branch ID: {appointment.branchId}</span>
+                                                        </div>
+                                                    ) : null;
+                                                })()}
                                             </div>
 
                                             {appointment.description && (
@@ -442,13 +507,32 @@ function AppointmentsList({ selectedUserId }) {
                                             </div>
 
                                             <div className="text-xs text-gray-500 mt-2">
-                                                <div>Created: {new Date(appointment.createdAt).toLocaleString()}</div>
-                                                <div>Updated: {new Date(appointment.updatedAt).toLocaleString()}</div>
+                                                <div>
+                                                    Created: {new Date(appointment.createdAt).toLocaleString('en-GB', {
+                                                        day: '2-digit',
+                                                        month: '2-digit',
+                                                        year: 'numeric',
+                                                        hour: 'numeric',
+                                                        minute: '2-digit',
+                                                        hour12: true,
+                                                    }).toLowerCase()}
+                                                </div>
+
+                                                <div>
+                                                    Updated: {new Date(appointment.updatedAt).toLocaleString('en-GB', {
+                                                        day: '2-digit',
+                                                        month: '2-digit',
+                                                        year: 'numeric',
+                                                        hour: 'numeric',
+                                                        minute: '2-digit',
+                                                        hour12: true,
+                                                    }).toLowerCase()}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex gap-2 flex-shrink-0  ">
+                                    <div className="flex gap-2 flex-shrink-0">
                                         {isEditable ? (
                                             <>
                                                 <button
@@ -460,7 +544,7 @@ function AppointmentsList({ selectedUserId }) {
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteAppointment(appointment)}
-                                                    className={`text-red-600  border border-red-600 px-3 py-2 text-base rounded font-medium transition-all flex items-center w-40 justify-center ${deletingId === appointment.id
+                                                    className={`text-red-600 border border-red-600 px-3 py-2 text-base rounded font-medium transition-all flex items-center w-40 justify-center ${deletingId === appointment.id
                                                         ? "opacity-50 cursor-not-allowed"
                                                         : "hover:bg-red-50"
                                                         }`}

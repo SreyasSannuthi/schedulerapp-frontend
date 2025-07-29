@@ -94,8 +94,8 @@ export const DELETE_PATIENT = gql`
 `;
 
 export const GET_APPOINTMENTS = gql`
-    query GetAppointments($adminId: ID!) {
-        appointments(adminId: $adminId) {
+    query GetAppointments($requesterId: ID!) {
+        appointments(requesterId: $requesterId) {
             id
             title
             description
@@ -109,6 +109,8 @@ export const GET_APPOINTMENTS = gql`
             createdAt
             updatedAt
             duration
+            branchId
+            branchLocation
         }
     }
 `;
@@ -129,6 +131,8 @@ export const GET_APPOINTMENTS_BY_DOCTOR = gql`
             duration
             createdAt
             updatedAt
+            branchId
+            branchLocation
         }
     }
 `;
@@ -149,6 +153,8 @@ export const GET_APPOINTMENTS_BY_PATIENT = gql`
             duration
             createdAt
             updatedAt
+            branchId
+            branchLocation
         }
     }
 `;
@@ -365,8 +371,8 @@ export const REMOVE_DOCTOR_FROM_BRANCH = gql`
 `;
 
 export const GET_APPOINTMENTS_BY_DATE_RANGE = gql`
-    query GetAppointmentsByDateRange($adminId: ID!, $startDate: String!, $endDate: String!) {
-        appointmentsByDateRange(adminId: $adminId, startDate: $startDate, endDate: $endDate) {
+    query GetAppointmentsByDateRange($requesterId: ID!, $startDate: String!, $endDate: String!) {
+        appointmentsByDateRange(requesterId: $requesterId, startDate: $startDate, endDate: $endDate) {
             id
             title
             description
@@ -424,6 +430,62 @@ export const GET_APPOINTMENTS_BY_PATIENT_AND_DATE_RANGE = gql`
     }
 `;
 
+export const GET_APPOINTMENTS_BY_BRANCH_AND_DATE_RANGE = gql`
+    query GetAppointmentsByBranchAndDateRange($branchId: ID!, $requesterId: ID!, $startDate: String!, $endDate: String!) {
+        appointmentsByBranchAndDateRange(branchId: $branchId, requesterId: $requesterId, startDate: $startDate, endDate: $endDate) {
+            id
+            title
+            description
+            doctorId
+            patientId
+            doctorName
+            patientName
+            startTime
+            endTime
+            status
+            duration
+            createdAt
+            updatedAt
+        }
+    }
+`;
+
+export const GET_APPOINTMENTS_BY_BRANCH_AND_STATUS = gql`
+    query GetAppointmentsByBranchAndStatus($branchId: ID!, $status: String!, $requesterId: ID!) {
+        appointmentsByBranchAndStatus(branchId: $branchId, status: $status, requesterId: $requesterId) {
+            id
+            title
+            description
+            doctorId
+            patientId
+            doctorName
+            patientName
+            startTime
+            endTime
+            status
+            duration
+            createdAt
+            updatedAt
+        }
+    }
+`;
+
+export const GET_RECEPTIONISTS_BY_BRANCH = gql`
+    query GetReceptionistsByBranch($branchId: ID!) {
+        receptionistsByBranch(branchId: $branchId) {
+            id
+            name
+            email
+            role
+            phoneNumber
+            age
+            createdAt
+        }
+    }
+`;
+
+
+
 export const GET_APPOINTMENTS_BY_STATUS = gql`
     query GetAppointmentsByStatus($status: String!, $requesterId: ID!) {
         appointmentsByStatus(status: $status, requesterId: $requesterId) {
@@ -467,6 +529,51 @@ export const GET_DOCTORS_WITH_BRANCHES = gql`
             city
             state
             isActive
+        }
+    }
+`;
+
+export const UPDATE_DOCTOR = gql`
+    mutation UpdateDoctor($id: ID!, $input: DoctorUpdateInput!) {
+        updateDoctor(id: $id, input: $input) {
+            id
+            name
+            email
+            role
+            isActive
+        }
+    }
+`;
+
+export const GET_CUSTOMER_CARE = gql`
+    query GetCustomerCare {
+        customerCareStaff {
+            id
+            name
+            email
+            role
+            createdAt
+            isActive
+        }
+    }
+`;
+
+export const GET_APPOINTMENTS_BY_BRANCH = gql`
+    query GetAppointmentsByBranch($branchId: ID!, $requesterId: ID!) {
+        appointmentsByBranch(branchId: $branchId, requesterId: $requesterId) {
+            id
+            title
+            description
+            doctorId
+            patientId
+            doctorName
+            patientName
+            startTime
+            endTime
+            status
+            duration
+            createdAt
+            updatedAt
         }
     }
 `;

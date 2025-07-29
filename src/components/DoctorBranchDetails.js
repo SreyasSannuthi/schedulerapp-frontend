@@ -7,7 +7,6 @@ import {
   Phone,
   Mail,
   Clock,
-  Users,
   Calendar,
   CheckCircle,
   AlertCircle
@@ -70,21 +69,20 @@ function DoctorBranchDetails({ doctorId }) {
   const doctorBranches = branchMappingsData?.doctorBranches || [];
   const allBranches = branchesData?.hospitalBranches || [];
 
-  // Get detailed branch information for assigned branches
   const assignedBranches = doctorBranches.map(mapping => {
     const branchDetails = allBranches.find(branch => branch.id === mapping.branchId);
     return {
       ...mapping,
       branchDetails
     };
-  }).filter(item => item.branchDetails); // Only include branches with valid details
+  }).filter(item => item.branchDetails);
 
   const activeBranches = assignedBranches.filter(item => item.branchDetails.isActive);
   const inactiveBranches = assignedBranches.filter(item => !item.branchDetails.isActive);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+
       <div>
         <h2 className="text-2xl font-bold text-gray-900 flex items-center">
           <Building2 className="w-6 h-6 mr-2" />
@@ -93,7 +91,6 @@ function DoctorBranchDetails({ doctorId }) {
         <p className="text-gray-600">View the hospital branches where you're assigned to work</p>
       </div>
 
-      {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-6 rounded-lg border shadow-sm">
           <div className="flex items-center">
@@ -132,7 +129,6 @@ function DoctorBranchDetails({ doctorId }) {
         </div>
       </div>
 
-      {/* No Assignments Message */}
       {assignedBranches.length === 0 && (
         <div className="bg-white rounded-lg border p-12 text-center">
           <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -146,7 +142,6 @@ function DoctorBranchDetails({ doctorId }) {
         </div>
       )}
 
-      {/* Active Branches */}
       {activeBranches.length > 0 && (
         <div>
           <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
@@ -165,7 +160,6 @@ function DoctorBranchDetails({ doctorId }) {
         </div>
       )}
 
-      {/* Inactive Branches */}
       {inactiveBranches.length > 0 && (
         <div>
           <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
