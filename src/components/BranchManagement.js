@@ -99,7 +99,7 @@ function BranchManagement() {
 
   const [removeDoctor] = useMutation(REMOVE_DOCTOR_FROM_BRANCH, {
     refetchQueries: [{ query: GET_DOCTOR_BRANCH_MAPPINGS }],
-    onCompleted: () => showSuccess('Doctor removed from branch successfully!'),
+    onCompleted: () => showSuccess('Staff removed from branch successfully!'),
     onError: (error) => showError(error.message)
   });
 

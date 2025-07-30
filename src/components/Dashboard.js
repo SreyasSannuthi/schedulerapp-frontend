@@ -7,6 +7,7 @@ import AppointmentsList from './AppointmentsList';
 import UserManagement from './UserManagement';
 import BranchManagement from './BranchManagement';
 import DoctorBranchDetails from './DoctorBranchDetails';
+import ActivityLogs from './ActivityLogs';
 import {
   Menu,
   X,
@@ -19,7 +20,8 @@ import {
   Crown,
   UserCheck,
   PhoneCall,
-  Stethoscope
+  Stethoscope,
+  History
 } from 'lucide-react';
 
 function Dashboard() {
@@ -47,6 +49,7 @@ function Dashboard() {
         ...baseItems,
         { id: 'users', label: 'User Management', icon: Users },
         { id: 'branches', label: 'Branch Management', icon: Building2 },
+        { id: 'activityLogs' , label: 'Activity Logs', icon: History },
       ];
     } else if (hasFullAccess) {
       return baseItems;
@@ -117,6 +120,8 @@ function Dashboard() {
         return (currentUser?.role === 'doctor' || currentUser?.role === 'receptionist') ? <DoctorBranchDetails doctorId={currentUser.id} /> : null;
       case 'profile':
         return <UserProfile />;
+      case 'activityLogs':
+        return isAdmin ? <ActivityLogs /> : null;
       default:
         return <AppointmentsList selectedUserId={isAdmin ? null : currentUser?.id} />;
     }

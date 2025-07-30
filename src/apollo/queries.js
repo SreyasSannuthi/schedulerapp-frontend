@@ -577,3 +577,62 @@ export const GET_APPOINTMENTS_BY_BRANCH = gql`
         }
     }
 `;
+
+export const GET_ACTIVITY_LOGS_BY_ID = gql`
+  query GetActivityLogs($entityType: String!, $entityId: String!) {
+    getActivityLogsById(entityType: $entityType, entityId: $entityId) {
+      id
+      description
+      actionType
+      performedByName
+      timestamp
+      state
+      relatedEntities
+      impactSummary
+      staffRole
+      staffName
+      branchCode
+      branchLocation
+    }
+  }
+`;
+
+export const GET_ACTIVITY_LOGS_BY_TYPE = gql`
+  query GetActivityLogs($entityType: String!) {
+    getActivityLogsByType(entityType: $entityType) {
+      id
+      description
+      actionType
+      entityType
+      performedByName
+      timestamp
+      state
+      relatedEntities
+      impactSummary
+      staffRole
+      staffName
+      branchCode
+      branchLocation
+    }
+  }
+`;
+
+export const GET_ACTIVITY_LOGS = gql`
+    query GetActivityLogs {
+        getActivityLogs {
+        id
+        description
+        actionType
+        entityType
+        performedByName
+        timestamp
+        state
+        relatedEntities
+        impactSummary
+        staffRole
+        staffName
+        branchCode
+        branchLocation
+        }
+    }
+`;
