@@ -87,7 +87,7 @@ function AppointmentCalendar({ selectedUserId }) {
             onCompleted: (data) => {
                 if (data) {
                     let appointmentCount = 0;
-                    if (isAdmin|| hasFullAccess) {
+                    if (isAdmin || hasFullAccess) {
                         let allAppointments = data.appointments?.length || 0;
                         if (selectedUserId) {
                             const filteredAppointments = (data.appointments || []).filter(appointment =>
@@ -192,7 +192,8 @@ function AppointmentCalendar({ selectedUserId }) {
 
     const eventStyleGetter = (event) => {
         let backgroundColor = "#3b82f6";
-        switch (event.resource.status) {
+        const status = event.resource.status?.toLowerCase();
+        switch (status) {
             case "completed":
                 backgroundColor = "#10b981";
                 break;

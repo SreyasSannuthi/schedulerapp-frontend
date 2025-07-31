@@ -52,6 +52,7 @@ export const GET_PATIENTS = gql`
             phoneNumber
             age
             role
+            isActive
         }
     }
 `;

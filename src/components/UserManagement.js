@@ -29,6 +29,7 @@ function UserManagement() {
   const [editingDoctor, setEditingDoctor] = useState(null);
   const [showDoctorEditForm, setShowDoctorEditForm] = useState(false);
   const [filterRole, setFilterRole] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   const [doctorEditForm, setDoctorEditForm] = useState({
@@ -89,9 +90,22 @@ function UserManagement() {
 
   const filteredUsers = allUsers.filter(user => {
     const matchesRole = filterRole === 'all' || user.role === filterRole;
+
+    const matchesStatus = (() => {
+      if (filterStatus === 'all') return true;
+
+      const userIsActive = user.isActive !== undefined ? user.isActive : true;
+
+      if (filterStatus === 'active') return userIsActive === true;
+      if (filterStatus === 'inactive') return userIsActive === false;
+
+      return true;
+    })();
+
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesRole && matchesSearch;
+
+    return matchesRole && matchesStatus && matchesSearch;
   });
 
   const handleDeleteUser = (user) => {
@@ -189,7 +203,19 @@ function UserManagement() {
     const customer_careCount = allUsers.filter(u => u.role === 'customer_care').length;
     const receptionistCount = allUsers.filter(u => u.role === 'receptionist').length;
 
-    return { totalUsers, adminCount, doctorCount, patientCount, customer_careCount, receptionistCount };
+    const activeUsers = allUsers.filter(u => u.isActive !== false).length;
+    const inactiveUsers = allUsers.filter(u => u.isActive === false).length;
+
+    return {
+      totalUsers,
+      adminCount,
+      doctorCount,
+      patientCount,
+      customer_careCount,
+      receptionistCount,
+      activeUsers,
+      inactiveUsers
+    };
   };
 
   const stats = getStats();
@@ -219,79 +245,79 @@ function UserManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-            <Users className="w-6 h-6 mr-2" />
-            User Management
-          </h2>
-          <p className="text-gray-600">Manage system users and their permissions</p>
-        </div>
-        <button
-          onClick={() => setShowCreateUser(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center font-medium"
-        >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Create User
-        </button>
-      </div>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                <Users className="w-6 h-6 mr-2" />
+                User Management
+              </h2>
+              <p className="text-gray-600">Manage system users and their permissions</p>
+            </div>
+            <button
+              onClick={() => setShowCreateUser(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center font-medium"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Create User
+            </button>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border shadow-sm">
-          <div className="flex items-center">
-            <Users className="w-8 h-8 text-gray-600" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border shadow-sm">
-          <div className="flex items-center">
-            <Crown className="w-8 h-8 text-red-600" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Admins</p>
-              <p className="text-2xl font-bold text-red-600">{stats.adminCount}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border shadow-sm">
-          <div className="flex items-center">
-            <UserCheck className="w-8 h-8 text-blue-600" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Doctors</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.doctorCount}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border shadow-sm">
-          <div className="flex items-center">
-            <User className="w-8 h-8 text-green-600" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Patients</p>
-              <p className="text-2xl font-bold text-green-600">{stats.patientCount}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border shadow-sm">
-          <div className="flex items-center">
-            <PhoneCall className="w-8 h-8 text-green-600" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Customer Care</p>
-              <p className="text-2xl font-bold text-green-600">{stats.customer_careCount}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <div className="flex items-center">
-                <Building2 className="w-8 h-8 text-purple-600" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-lg border shadow-sm">
+              <div className="flex items-center">
+                <Users className="w-8 h-8 text-gray-600" />
                 <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">Receptionists</p>
-                    <p className="text-2xl font-bold text-purple-600">{stats.receptionistCount}</p>
+                  <p className="text-sm font-medium text-gray-600">Total Users</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg border shadow-sm">
+              <div className="flex items-center">
+                <Crown className="w-8 h-8 text-red-600" />
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Admins</p>
+                  <p className="text-2xl font-bold text-red-600">{stats.adminCount}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg border shadow-sm">
+              <div className="flex items-center">
+                <UserCheck className="w-8 h-8 text-blue-600" />
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Doctors</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.doctorCount}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg border shadow-sm">
+              <div className="flex items-center">
+                <User className="w-8 h-8 text-green-600" />
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Patients</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.patientCount}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg border shadow-sm">
+              <div className="flex items-center">
+                <PhoneCall className="w-8 h-8 text-green-600" />
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Customer Care</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.customer_careCount}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <div className="flex items-center">
+                    <Building2 className="w-8 h-8 text-purple-600" />
+                    <div className="ml-3">
+                        <p className="text-sm font-medium text-gray-600">Receptionists</p>
+                        <p className="text-2xl font-bold text-purple-600">{stats.receptionistCount}</p>
+                    </div>
                 </div>
             </div>
-        </div>
-      </div>
+          </div>
 
       <div className="bg-white p-4 rounded-lg border shadow-sm">
         <div className="flex flex-col md:flex-row gap-4">
@@ -304,6 +330,19 @@ function UserManagement() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-40"
+            >
+              <option value="all">All Users</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Role</label>
@@ -328,6 +367,7 @@ function UserManagement() {
           const RoleIcon = getRoleIcon(user.role);
           const isAdmin = user.role === 'admin';
           const isDoctor = user.userType === 'doctor';
+          const userIsActive = user.isActive !== undefined ? user.isActive : true;
 
           return (
             <div key={user.id} className="bg-white p-6 rounded-lg border shadow-sm hover:shadow-md transition-shadow">
@@ -409,14 +449,12 @@ function UserManagement() {
                   </div>
                 )}
 
-                {isDoctor && (
-                  <div className="flex items-center text-xs">
-                    <div className={`w-2 h-2 rounded-full mr-2 ${user.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                    <span className={user.isActive ? 'text-green-600' : 'text-red-600'}>
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center text-xs">
+                  <div className={`w-2 h-2 rounded-full mr-2 ${userIsActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className={userIsActive ? 'text-green-600' : 'text-red-600'}>
+                    {userIsActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
               </div>
             </div>
           );
@@ -428,7 +466,7 @@ function UserManagement() {
           <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
           <p className="text-gray-600">
-            {searchTerm || filterRole !== 'all'
+            {searchTerm || filterRole !== 'all' || filterStatus !== 'all'
               ? 'Try adjusting your search or filter criteria.'
               : 'Create your first user to get started.'
             }
@@ -508,7 +546,7 @@ function UserManagement() {
                   ) : (
                     <>
                       <Save className="w-4 h-4 mr-2" />
-                        {`Update ${editingDoctor.role}`}
+                      {`Update ${editingDoctor.role}`}
                     </>
                   )}
                 </button>

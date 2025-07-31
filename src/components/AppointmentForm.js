@@ -107,7 +107,7 @@ function AppointmentForm({
                 description: editAppointment.description || "",
                 startTime: formatDateTimeLocal(startTime),
                 endTime: formatDateTimeLocal(endTime),
-                status: editAppointment.status || "scheduled",
+                status: editAppointment.status?.toLowerCase() || "scheduled",
                 doctorId: editAppointment.doctorId,
                 patientId: editAppointment.patientId,
                 branchId: editAppointment.branchId || "",
@@ -778,13 +778,35 @@ function AppointmentForm({
                     )}
 
                     {collisionCheck && collisionCheck.length > 0 && (
+
                         <div className="bg-red-50 border border-red-200 rounded-md p-3">
                             <p className="text-red-700 text-sm font-semibold mb-2">⚠️ Scheduling Conflicts:</p>
-                            {collisionCheck.map((conflict, index) => (
-                                <p key={index} className="text-red-600 text-xs">
-                                    • "{conflict.title}" - {new Date(conflict.startTime).toLocaleString()} to {new Date(conflict.endTime).toLocaleString()}
-                                </p>
-                            ))}
+                            {collisionCheck.map((conflict, index) => {
+                                    const isDuplicate = collisionCheck.findIndex(c => c.id === conflict.id) !== index;
+                                    if (isDuplicate) return null;
+
+                                   return(<p key={index} className="text-red-600 text-xs">
+                                    • "{conflict.title}" with Dr. {conflict.doctorName} and {conflict.patientName} -{" "}
+                                      {new Date(conflict.startTime).toLocaleString("en-US", {
+                                        year: "2-digit",
+                                        month: "2-digit",
+                                        day: "2-digit",
+                                        hour: "numeric",
+                                        minute: "numeric",
+                                        hour12: true
+                                      })}{" "}
+                                      to{" "}
+                                      {new Date(conflict.endTime).toLocaleString("en-US", {
+                                        year: "2-digit",
+                                        month: "2-digit",
+                                        day: "2-digit",
+                                        hour: "numeric",
+                                        minute: "numeric",
+                                        hour12: true
+                                      })}
+
+                                   </p>);
+                            })}
                         </div>
                     )}
 

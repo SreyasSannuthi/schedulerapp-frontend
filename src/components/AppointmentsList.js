@@ -75,7 +75,7 @@ function AppointmentsList({ selectedUserId }) {
     const { loading, error, data } = useQuery(queryConfig?.query || GET_APPOINTMENTS, {
         variables: queryConfig?.variables,
         skip: !currentUser || !queryConfig,
-        fetchPolicy: 'network-only',
+        fetchPolicy: 'cache-and-network',
         onCompleted: (data) => {
             if (data) {
                 let appointmentCount = 0;
@@ -216,8 +216,9 @@ function AppointmentsList({ selectedUserId }) {
     };
 
     const getStatusColor = (status) => {
-        if (status === "completed") return "bg-green-200 text-green-800";
-        if (status === "cancelled") return "bg-red-200 text-red-800";
+        const normalizedStatus = status?.toLowerCase();
+        if (normalizedStatus === "completed") return "bg-green-200 text-green-800";
+        if (normalizedStatus === "cancelled") return "bg-red-200 text-red-800";
         return "bg-blue-200 text-blue-800";
     };
 
