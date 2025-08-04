@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
-import { GET_DOCTORS, GET_PATIENTS, DELETE_DOCTOR, DELETE_PATIENT, UPDATE_DOCTOR } from '../apollo/queries';
+import { GET_DOCTORS, GET_PATIENTS, DELETE_DOCTOR, DELETE_PATIENT, UPDATE_DOCTOR, UPDATE_PATIENT } from '../apollo/queries';
 import { useToast } from './Toast';
 import SignupForm from './SignupForm';
 import {
@@ -27,6 +27,8 @@ function UserManagement() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState(null);
+  const [editingPatient, setEditingPatient] = useState(null);
+  const [showPatientEditForm, setShowPatientEditForm] = useState(false);
   const [showDoctorEditForm, setShowDoctorEditForm] = useState(false);
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -35,6 +37,14 @@ function UserManagement() {
   const [doctorEditForm, setDoctorEditForm] = useState({
     name: '',
     email: '',
+    isActive: true
+  });
+
+  const [patientEditForm, setPatientEditForm] = useState({
+    name: '',
+    email: '',
+    phoneNumber: '',
+    age: '',
     isActive: true
   });
 
@@ -70,6 +80,17 @@ function UserManagement() {
       resetDoctorEditForm();
     },
     onError: (error) => showError(`Failed to update staff: ${error.message}`)
+  });
+
+  const [updatePatient, { loading: updatingPatient }] = useMutation(UPDATE_PATIENT, {
+    refetchQueries: [{ query: GET_PATIENTS }],
+    onCompleted: () => {
+      showSuccess('Patient updated successfully');
+      setShowPatientEditForm(false);
+      setEditingPatient(null);
+      resetPatientEditForm();
+    },
+    onError: (error) => showError(`Failed to update patient: ${error.message}`)
   });
 
   if (loadingDoctors || loadingPatients) {
@@ -133,6 +154,30 @@ function UserManagement() {
     setShowDoctorEditForm(false);
   };
 
+  const handleEditPatient = (patient) => {
+    setEditingPatient(patient);
+    setPatientEditForm({
+      name: patient.name,
+      email: patient.email,
+      phoneNumber: patient.phoneNumber || '',
+      age: patient.age || '',
+      isActive: patient.isActive,
+    });
+    setShowPatientEditForm(true);
+  }
+
+  const resetPatientEditForm = () => {
+    setPatientEditForm({
+      name: '',
+      email: '',
+      phoneNumber: '',
+      age: '',
+      isActive: true
+    });
+    setEditingPatient(null);
+    setShowPatientEditForm(false);
+  };
+
   const handleDoctorEditFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     setDoctorEditForm(prev => ({
@@ -156,6 +201,31 @@ function UserManagement() {
       });
     } catch (error) {
       console.error('Update doctor error:', error);
+    }
+  };
+
+  const handlePatientEditFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setPatientEditForm(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleUpdatePatient = async () => {
+    if (!editingPatient) return;
+
+    try {
+      await updatePatient({
+        variables: {
+          id: editingPatient.id,
+          input: {
+            ...patientEditForm
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Update patient error:', error);
     }
   };
 
@@ -245,79 +315,79 @@ function UserManagement() {
 
   return (
     <div className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-                <Users className="w-6 h-6 mr-2" />
-                User Management
-              </h2>
-              <p className="text-gray-600">Manage system users and their permissions</p>
-            </div>
-            <button
-              onClick={() => setShowCreateUser(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center font-medium"
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              Create User
-            </button>
-          </div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+            <Users className="w-6 h-6 mr-2" />
+            User Management
+          </h2>
+          <p className="text-gray-600">Manage system users and their permissions</p>
+        </div>
+        <button
+          onClick={() => setShowCreateUser(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center font-medium"
+        >
+          <UserPlus className="w-4 h-4 mr-2" />
+          Create User
+        </button>
+      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-lg border shadow-sm">
-              <div className="flex items-center">
-                <Users className="w-8 h-8 text-gray-600" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Total Users</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-lg border shadow-sm">
-              <div className="flex items-center">
-                <Crown className="w-8 h-8 text-red-600" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Admins</p>
-                  <p className="text-2xl font-bold text-red-600">{stats.adminCount}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-lg border shadow-sm">
-              <div className="flex items-center">
-                <UserCheck className="w-8 h-8 text-blue-600" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Doctors</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.doctorCount}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-lg border shadow-sm">
-              <div className="flex items-center">
-                <User className="w-8 h-8 text-green-600" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Patients</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.patientCount}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-lg border shadow-sm">
-              <div className="flex items-center">
-                <PhoneCall className="w-8 h-8 text-green-600" />
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Customer Care</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.customer_careCount}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <div className="flex items-center">
-                    <Building2 className="w-8 h-8 text-purple-600" />
-                    <div className="ml-3">
-                        <p className="text-sm font-medium text-gray-600">Receptionists</p>
-                        <p className="text-2xl font-bold text-purple-600">{stats.receptionistCount}</p>
-                    </div>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-lg border shadow-sm">
+          <div className="flex items-center">
+            <Users className="w-8 h-8 text-gray-600" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Total Users</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
             </div>
           </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border shadow-sm">
+          <div className="flex items-center">
+            <Crown className="w-8 h-8 text-red-600" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Admins</p>
+              <p className="text-2xl font-bold text-red-600">{stats.adminCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border shadow-sm">
+          <div className="flex items-center">
+            <UserCheck className="w-8 h-8 text-blue-600" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Doctors</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.doctorCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border shadow-sm">
+          <div className="flex items-center">
+            <User className="w-8 h-8 text-green-600" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Patients</p>
+              <p className="text-2xl font-bold text-green-600">{stats.patientCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border shadow-sm">
+          <div className="flex items-center">
+            <PhoneCall className="w-8 h-8 text-green-600" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Customer Care</p>
+              <p className="text-2xl font-bold text-green-600">{stats.customer_careCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border shadow-sm">
+          <div className="flex items-center">
+            <Building2 className="w-8 h-8 text-purple-600" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Receptionists</p>
+              <p className="text-2xl font-bold text-purple-600">{stats.receptionistCount}</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="bg-white p-4 rounded-lg border shadow-sm">
         <div className="flex flex-col md:flex-row gap-4">
@@ -367,6 +437,7 @@ function UserManagement() {
           const RoleIcon = getRoleIcon(user.role);
           const isAdmin = user.role === 'admin';
           const isDoctor = user.userType === 'doctor';
+          const isPatient = user.userType === 'patient';
           const userIsActive = user.isActive !== undefined ? user.isActive : true;
 
           return (
@@ -390,6 +461,15 @@ function UserManagement() {
                         onClick={() => handleEditDoctor(user)}
                         className="text-blue-600 hover:text-blue-800 p-1 rounded-md hover:bg-blue-50"
                         title="Edit doctor"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    )}
+                    {isPatient && (
+                      <button
+                        onClick={() => handleEditPatient(user)}
+                        className="text-blue-600 hover:text-blue-800 p-1 rounded-md hover:bg-blue-50"
+                        title="Edit patient"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
@@ -547,6 +627,110 @@ function UserManagement() {
                     <>
                       <Save className="w-4 h-4 mr-2" />
                       {`Update ${editingDoctor.role}`}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPatientEditForm && editingPatient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg w-full max-w-md shadow-xl">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Edit Patient</h3>
+                <button
+                  onClick={resetPatientEditForm}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={patientEditForm.name}
+                    onChange={handlePatientEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={patientEditForm.email}
+                    onChange={handlePatientEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    name="phoneNumber"
+                    value={patientEditForm.phoneNumber}
+                    onChange={handlePatientEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                  <input
+                    type="number"
+                    name="age"
+                    value={patientEditForm.age}
+                    onChange={handlePatientEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="patientIsActive"
+                    name="isActive"
+                    checked={patientEditForm.isActive}
+                    onChange={handlePatientEditFormChange}
+                    className="h-4 w-4 text-blue-600 rounded"
+                  />
+                  <label htmlFor="patientIsActive" className="ml-2 text-sm text-gray-700">
+                    Active Patient
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={resetPatientEditForm}
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdatePatient}
+                  disabled={updatingPatient}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors disabled:bg-gray-400 flex items-center justify-center"
+                >
+                  {updatingPatient ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Saving...
+                    </div>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Update Patient
                     </>
                   )}
                 </button>

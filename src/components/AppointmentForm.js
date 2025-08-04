@@ -856,15 +856,15 @@ function AppointmentForm({
                     {!areRequiredFieldsFilled() && (
                         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                             <p className="text-yellow-700 text-sm">
-                                ⚠️ Please fill all required fields marked with *
+                                 Please fill all required fields marked with *
                             </p>
                         </div>
                     )}
 
                     {editAppointment && !canEdit() && (
                         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mt-4">
-                            <p className="text-yellow-700 text-sm text-center">
-                                👁️ You can view this appointment but cannot edit it.
+                            <p className="text-yellow-700 text-sm">
+                                 You can view this appointment but cannot edit it.
                             </p>
                         </div>
                     )}

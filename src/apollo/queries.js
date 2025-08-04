@@ -57,6 +57,19 @@ export const GET_PATIENTS = gql`
     }
 `;
 
+export const UPDATE_PATIENT = gql`
+    mutation UpdatePatient($id: ID!, $input: PatientUpdateInput!) {
+        updatePatient(id: $id, input: $input) {
+            id
+            name
+            email
+            phoneNumber
+            age
+            isActive
+        }
+    }
+`;
+
 export const SIGNUP_DOCTOR = gql`
     mutation SignupDoctor($input: DoctorSignupInput!) {
         signupDoctor(input: $input) {
