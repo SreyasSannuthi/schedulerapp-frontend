@@ -650,3 +650,144 @@ export const GET_ACTIVITY_LOGS = gql`
         }
     }
 `;
+
+export const GET_PATIENT_MEDICAL_RECORD = gql`
+    query GetPatientMedicalRecord($patientId: ID!) {
+        getPatientMedicalRecord(patientId: $patientId) {
+            id
+            patientId
+            createdAt
+            updatedAt
+            personalInfo {
+                bloodType
+                height
+                weight
+                lastWeightUpdate
+                allergies
+                chronicConditions
+                currentMedications
+                emergencyContactName
+                emergencyContactPhone
+            }
+            visitHistory {
+                appointmentId
+                visitDate
+                doctorName
+                branchLocation
+                reasonForVisit
+                symptoms
+                bloodPressure
+                temperature
+                weight
+                diagnosis
+                treatment
+                medications
+                doctorNotes
+                followUpRequired
+                followUpDate
+                visitDuration
+            }
+            medicalDocuments {
+                documentId
+                fileName
+                filePath
+                fileSize
+                uploadDate
+                uploadedBy
+                description
+            }
+            analytics {
+                totalVisits
+                lastVisitDate
+                commonDiagnoses
+                missedAppointments
+                weightHistory
+                averageVisitsPerMonth
+                lastAnalyticsUpdate
+            }
+        }
+    }
+`;
+
+export const GET_PATIENT_HISTORY = gql`
+    query GetPatientHistory($patientId: ID!) {
+        getPatientHistory(patientId: $patientId) {
+            appointmentId
+            visitDate
+            doctorName
+            branchLocation
+            reasonForVisit
+            symptoms
+            bloodPressure
+            temperature
+            weight
+            diagnosis
+            treatment
+            medications
+            doctorNotes
+            followUpRequired
+            followUpDate
+            visitDuration
+        }
+    }
+`;
+
+export const GET_PATIENT_ANALYTICS = gql`
+    query GetPatientAnalytics($patientId: ID!) {
+        getPatientAnalytics(patientId: $patientId) {
+            totalVisits
+            lastVisitDate
+            commonDiagnoses
+            missedAppointments
+            weightHistory
+            averageVisitsPerMonth
+            lastAnalyticsUpdate
+        }
+    }
+`;
+
+export const GET_PATIENT_PERSONAL_INFO = gql`
+    query GetPatientPersonalInfo($patientId: ID!) {
+        getPatientPersonalInfo(patientId: $patientId) {
+            bloodType
+            height
+            weight
+            lastWeightUpdate
+            allergies
+            chronicConditions
+            currentMedications
+            emergencyContactName
+            emergencyContactPhone
+        }
+    }
+`;
+
+export const UPDATE_PATIENT_PERSONAL_INFO = gql`
+    mutation UpdatePatientPersonalInfo($patientId: ID!, $input: PersonalMedicalInfoInput!) {
+        updatePatientPersonalInfo(patientId: $patientId, input: $input) {
+            bloodType
+            height
+            weight
+            lastWeightUpdate
+            allergies
+            chronicConditions
+            currentMedications
+            emergencyContactName
+            emergencyContactPhone
+        }
+    }
+`;
+
+export const UPLOAD_DOCUMENT = gql`
+    mutation UploadDocument($patientId: ID!, $input: MedicalDocumentInput!) {
+        uploadDocument(patientId: $patientId, input: $input) {
+            documentId
+            fileName
+            filePath
+            fileSize
+            uploadDate
+            uploadedBy
+            description
+        }
+    }
+`;

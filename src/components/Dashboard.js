@@ -8,6 +8,7 @@ import UserManagement from './UserManagement';
 import BranchManagement from './BranchManagement';
 import DoctorBranchDetails from './DoctorBranchDetails';
 import ActivityLogs from './ActivityLogs';
+import MedicalRecords from './recordstab/MedicalRecords'
 import {
   Menu,
   X,
@@ -21,6 +22,7 @@ import {
   UserCheck,
   PhoneCall,
   Stethoscope,
+  ClipboardPlus,
   History
 } from 'lucide-react';
 
@@ -69,6 +71,7 @@ function Dashboard() {
       return [
         ...baseItems,
         { id: 'profile', label: 'My Profile', icon: User },
+        {id: 'medical-records', label : 'Medical Records', icon : ClipboardPlus}
       ];
     }
   };
@@ -122,6 +125,8 @@ function Dashboard() {
         return <UserProfile />;
       case 'activityLogs':
         return isAdmin ? <ActivityLogs /> : null;
+      case 'medical-records':
+        return <MedicalRecords patientId={currentUser?.id}/>
       default:
         return <AppointmentsList selectedUserId={isAdmin ? null : currentUser?.id} />;
     }
